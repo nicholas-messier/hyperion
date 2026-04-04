@@ -228,6 +228,51 @@ The script prompts for:
 
 ---
 
+### `conky/` — Desktop Dashboard Widget
+Conky desktop widget showing clock, world time zones, local weather (Laconia NH),
+Boston Celtics schedule, system stats, disk usage, and service status at a glance.
+
+**Includes:**
+
+| File | Purpose |
+|------|---------|
+| `conky-clock.conf` | Main dashboard widget (top-right) — clock, weather, Celtics, system info, services |
+| `conky-weather.conf` | Standalone weather-only widget (top-left) |
+| `update_weather.sh` | Fetches current conditions from NWS API (KLCI station) → `~/.cache/wttr_laconia.txt` |
+| `update_celtics.sh` | Fetches next Celtics game + record from ESPN API → `~/.cache/celtics_*.txt` |
+| `install.sh` | One-command setup: installs deps, deploys configs, sets up cron, starts conky |
+| `back_concky-clock.conf` | Backup of an earlier clock config version |
+
+**Quick setup on a new machine:**
+```bash
+cd ~/bin/conky
+./install.sh
+```
+
+The install script:
+1. Installs dependencies (`conky-all`, `jq`, `curl`, `lm-sensors`)
+2. Checks for JetBrainsMono Nerd Font
+3. Copies conky configs to `~/.config/conky/`
+4. Adds cron jobs (weather every 20 min, Celtics every 30 min)
+5. Runs an initial data fetch so conky has data immediately
+6. Optionally starts conky
+
+**Manual start:**
+```bash
+conky -c ~/.config/conky/conky-clock.conf -d
+```
+
+**Dependencies:** `conky-all`, `jq`, `curl`, `lm-sensors`, JetBrainsMono Nerd Font
+```bash
+sudo apt install conky-all jq curl lm-sensors
+```
+
+**Data sources:**
+- Weather: [NWS API](https://api.weather.gov/) (station KLCI — Laconia Municipal Airport)
+- Celtics: [ESPN API](https://site.api.espn.com/apis/site/v2/sports/basketball/nba/)
+
+---
+
 ## Server Info
 
 | Component | Details |
@@ -336,4 +381,8 @@ sudo apt install tmux
 
 # Recommended for interactive disk usage browsing
 sudo apt install ncdu
+
+# Required for conky/ desktop widget
+sudo apt install conky-all jq curl lm-sensors
+# JetBrainsMono Nerd Font — https://www.nerdfonts.com/font-downloads
 ```
