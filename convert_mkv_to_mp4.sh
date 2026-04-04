@@ -222,13 +222,13 @@ detect_hwaccel() {
 
     try_nvenc() {
         nvidia-smi &>/dev/null || return 1
-        ffmpeg -hide_banner -f lavfi -i "nullsrc=s=64x64:d=0.1" \
+        ffmpeg -hide_banner -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -c:v h264_nvenc -f null - 2>/dev/null
     }
 
     try_qsv() {
         ffmpeg -hide_banner -init_hw_device qsv=hw \
-            -f lavfi -i "nullsrc=s=64x64:d=0.1" \
+            -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -vf 'format=nv12,hwupload=extra_hw_frames=64' \
             -c:v h264_qsv -f null - 2>/dev/null
     }
@@ -237,7 +237,7 @@ detect_hwaccel() {
         [[ -z "$VAAPI_RENDER_DEVICE" ]] && return 1
         ffmpeg -hide_banner -init_hw_device "vaapi=va:${VAAPI_RENDER_DEVICE}" \
             -filter_hw_device va \
-            -f lavfi -i "nullsrc=s=64x64:d=0.1" \
+            -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -vf 'format=nv12,hwupload' \
             -c:v h264_vaapi -f null - 2>/dev/null
     }
