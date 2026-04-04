@@ -73,7 +73,7 @@ info "Deploying conky configs to ~/.config/conky/..."
 CONKY_DIR="$HOME/.config/conky"
 mkdir -p "$CONKY_DIR"
 
-for conf in conky-clock.conf conky-weather.conf; do
+for conf in conky-clock.conf conky-system.conf conky-weather.conf; do
     if [ -f "$CONKY_DIR/$conf" ]; then
         if ! diff -q "$SCRIPT_DIR/$conf" "$CONKY_DIR/$conf" &>/dev/null; then
             warn "$conf already exists and differs — backing up to ${conf}.bak"
@@ -144,13 +144,16 @@ if [[ "$ans" =~ ^[Yy] ]]; then
     killall conky 2>/dev/null || true
     sleep 1
     conky -c "$CONKY_DIR/conky-clock.conf" -d
-    ok "Conky started (conky-clock.conf)"
+    conky -c "$CONKY_DIR/conky-system.conf" -d
+    ok "Conky started (conky-clock.conf + conky-system.conf)"
     echo ""
-    echo "To auto-start conky on login, add this to your startup applications:"
+    echo "To auto-start conky on login, add these to your startup applications:"
     echo "  conky -c $CONKY_DIR/conky-clock.conf -d"
+    echo "  conky -c $CONKY_DIR/conky-system.conf -d"
 else
     info "Skipped — start manually with:"
     echo "  conky -c $CONKY_DIR/conky-clock.conf -d"
+    echo "  conky -c $CONKY_DIR/conky-system.conf -d"
 fi
 
 echo ""
@@ -158,6 +161,7 @@ ok "Conky setup complete!"
 echo ""
 echo "Files:"
 echo "  Configs:  $CONKY_DIR/conky-clock.conf"
+echo "            $CONKY_DIR/conky-system.conf"
 echo "            $CONKY_DIR/conky-weather.conf"
 echo "  Scripts:  $SCRIPT_DIR/update_weather.sh"
 echo "            $SCRIPT_DIR/update_celtics.sh"
