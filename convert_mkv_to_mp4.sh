@@ -279,16 +279,26 @@ build_ffmpeg_args() {
     local input="$1"
     FFMPEG_ARGS=()
 
-    local video_codec pix_fmt bit_depth
+    local video_codec pix_fmt bit_depth height h264_level
     video_codec=$(ffprobe -v error -select_streams v:0 \
         -show_entries stream=codec_name -of default=nw=1:nk=1 "$input" 2>/dev/null)
     pix_fmt=$(ffprobe -v error -select_streams v:0 \
         -show_entries stream=pix_fmt -of default=nw=1:nk=1 "$input" 2>/dev/null)
+    height=$(ffprobe -v error -select_streams v:0 \
+        -show_entries stream=height -of default=nw=1:nk=1 "$input" 2>/dev/null)
+    height=${height:-0}
 
     case "$pix_fmt" in
         *10le|*10be|yuv420p10*|yuv444p10*) bit_depth=10 ;;
         *) bit_depth=8 ;;
     esac
+
+    # H.264 Level 4.1 caps out at 720p bitrates; use 5.1 for 1080p+
+    if (( height > 720 )); then
+        h264_level="5.1"
+    else
+        h264_level="4.1"
+    fi
 
     # Video encoding strategy
     local needs_encode=false
@@ -322,7 +332,7 @@ build_ffmpeg_args() {
                 FFMPEG_ARGS+=(-c:v h264_nvenc -preset p4 -tune hq -rc constqp)
                 # NVENC quality: -cq maps to CRF (similar scale)
                 FFMPEG_ARGS+=(-qp "$CRF")
-                FFMPEG_ARGS+=(-profile:v high -level 4.1)
+                FFMPEG_ARGS+=(-profile:v high -level "$h264_level")
                 ;;
             qsv)
                 FFMPEG_ARGS+=(-init_hw_device qsv=hw -filter_hw_device hw)
@@ -332,7 +342,7 @@ build_ffmpeg_args() {
                 ;;
             *)
                 # Software encoding with libx264
-                FFMPEG_ARGS+=(-c:v libx264 -crf "$CRF" -preset "$PRESET" -profile:v high -level 4.1)
+                FFMPEG_ARGS+=(-c:v libx264 -crf "$CRF" -preset "$PRESET" -profile:v high -level "$h264_level")
                 ;;
         esac
 
@@ -470,6 +480,7 @@ convert_file_parallel() {
 
     local input_size
     input_size=$(stat -c%s "$input")
+    log INFO "Converting [$current/$total]: $(basename "$input") | $CODEC_INFO | crf=$CRF"
 
     mkdir -p "$(dirname "$output")"
 
@@ -520,16 +531,24 @@ convert_file_parallel() {
     ffcmd+=(-movflags +faststart -map 0:v:0 -map 0:a "$output")
 
     local file_start=$SECONDS
-    if "${ffcmd[@]}" 2>/dev/null; then
+    local err_file="${result_file%.txt}.err"
+    if "${ffcmd[@]}" 2>"$err_file"; then
         local elapsed=$(( SECONDS - file_start ))
         local output_size
         output_size=$(stat -c%s "$output")
+        local saved=$(( input_size - output_size ))
         echo "OK $input_size $output_size $elapsed" > "$result_file"
+        log INFO "  Done $(format_time $elapsed) | $(format_size $input_size) -> $(format_size $output_size) | saved $(format_size $saved)"
         echo -e "  ${GREEN}[${current}/${total}]${NC} $(basename "$input") — done in $(format_time $elapsed)"
+        rm -f "$err_file"
     else
         echo "FAIL 0 0 0" > "$result_file"
+        log ERROR "FFmpeg failed for: $input"
+        if [[ -s "$err_file" ]]; then
+            log ERROR "  $(tail -5 "$err_file" | tr '\n' ' ')"
+        fi
         echo -e "  ${RED}[${current}/${total}]${NC} $(basename "$input") — FAILED"
-        rm -f "$output"
+        rm -f "$output" "$err_file"
     fi
 }
 
@@ -882,6 +901,7 @@ if (( PARALLEL > 1 )); then
 
         if [[ -f "$OUTPUT" ]]; then
             echo "SKIP 0 0 0" > "$RESULT_DIR/result_${CURRENT}.txt"
+            log SKIP "Already exists: $(basename "$INPUT")"
             echo -e "${CYAN}[SKIP]${NC}  [${CURRENT}/${TOTAL}] $(basename "$INPUT")"
             continue
         fi
