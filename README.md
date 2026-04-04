@@ -23,7 +23,10 @@ Plex, ErsatzTV, and iPhone without transcoding.
 - Rolling ETA updated after every completed file using a 10-file rolling average
 - **Chunk planner** splits large libraries into time-targeted runs without ever splitting a show mid-way through
 - Configurable chunk target duration via `--hours` flag (default: 12 hours)
-- `--preset` flag to tune encode speed vs compression — use `medium` for movies, `fast` for TV shows
+- `--preset` flag to tune encode speed vs compression — full x264 preset range from `ultrafast` to `veryslow`
+- **Hardware-accelerated encoding** via `--hwaccel` — auto-detects VAAPI (Intel), NVENC (NVIDIA), or QSV (Intel Quick Sync)
+- **Parallel file processing** via `--parallel=N` — convert multiple files simultaneously on multi-core systems
+- **CRF quality control** via `--crf=N` — trade quality for speed (default 18, visually transparent at 23)
 - Full timestamped log written to output directory
 - Shows space saved per file and total at summary
 
@@ -35,8 +38,27 @@ Plex, ErsatzTV, and iPhone without transcoding.
 # Faster preset — recommended for large TV show libraries
 ./convert_mkv_to_mp4.sh --preset=fast
 
+# Fastest software encode — biggest files, maximum speed
+./convert_mkv_to_mp4.sh --preset=ultrafast
+
 # Best compression — slowest, use for archival
 ./convert_mkv_to_mp4.sh --preset=slow
+
+# Hardware-accelerated encoding (auto-detects VAAPI/NVENC/QSV)
+./convert_mkv_to_mp4.sh --hwaccel
+
+# Force a specific GPU encoder
+./convert_mkv_to_mp4.sh --hwaccel=vaapi    # Intel GPU
+./convert_mkv_to_mp4.sh --hwaccel=nvenc    # NVIDIA GPU
+
+# Convert 4 files simultaneously
+./convert_mkv_to_mp4.sh --parallel=4
+
+# Relax quality for faster encoding (default CRF is 18, x264 default is 23)
+./convert_mkv_to_mp4.sh --crf=23
+
+# Maximum speed — combine all options
+./convert_mkv_to_mp4.sh --hwaccel --parallel=4 --crf=23
 
 # Generate a chunk plan targeting ~12hr jobs (default)
 ./convert_mkv_to_mp4.sh --plan --preset=fast
@@ -46,10 +68,21 @@ Plex, ErsatzTV, and iPhone without transcoding.
 
 # Run a specific chunk
 ./convert_mkv_to_mp4.sh --chunk=1 --preset=fast
-./convert_mkv_to_mp4.sh --chunk=2 --preset=fast
+./convert_mkv_to_mp4.sh --chunk=2 --hwaccel --parallel=3 --crf=23
 ```
 
-**Preset options:** `slow` | `medium` (default) | `fast` | `faster` | `veryfast`
+**Speed options:**
+
+| Flag | Effect | Speed Gain |
+|------|--------|------------|
+| `--hwaccel[=TYPE]` | GPU-accelerated encoding (auto, vaapi, nvenc, qsv) | ~3-10x faster |
+| `--parallel=N` | Convert N files at the same time | ~Nx throughput |
+| `--preset=ultrafast` | Fastest x264 software preset (larger files) | ~4x vs medium |
+| `--crf=N` | Quality 0-51, higher = faster/smaller (default 18) | ~1.5-2x at CRF 23 |
+
+> **Note:** `--preset` only affects software encoding. When using `--hwaccel`, the GPU encoder handles its own speed/quality tradeoffs via `--crf`.
+
+**Preset options:** `ultrafast` | `superfast` | `veryfast` | `faster` | `fast` | `medium` (default) | `slow` | `slower` | `veryslow`
 
 **Recommended workflow for large TV libraries (5000+ episodes):**
 ```bash
@@ -59,6 +92,10 @@ Plex, ErsatzTV, and iPhone without transcoding.
 # Step 2 — run each chunk in a separate tmux session
 tmux new -s chunk1
 ./convert_mkv_to_mp4.sh --chunk=1 --preset=fast
+
+# Or go faster with GPU + parallel
+tmux new -s chunk1
+./convert_mkv_to_mp4.sh --chunk=1 --hwaccel --parallel=3 --crf=23
 
 # Detach with Ctrl+B then D, re-attach later with:
 tmux attach -t chunk1
@@ -197,7 +234,7 @@ The script prompts for:
 |-----------|---------|
 | **Hostname** | hyperion |
 | **OS** | Linux Mint 22.2 |
-| **CPU** | High-end (12+ cores) |
+| **CPU** | 2x Intel Xeon E5-2620 v3 (24 threads @ 2.4GHz, VAAPI-capable) |
 | **Media drives** | 2x Seagate Enterprise 8TB (ST8000NM0055) ~5 years runtime |
 | **Backup drive** | Seagate Expansion 8TB (exFAT, external USB) |
 | **Media server** | Plex + ErsatzTV |
@@ -212,6 +249,9 @@ The script prompts for:
 tmux new -s movies
 ./convert_mkv_to_mp4.sh --preset=medium
 # ~2 days on a high-end CPU for 215 mixed files
+
+# Or with GPU acceleration for faster turnaround
+./convert_mkv_to_mp4.sh --hwaccel --crf=20
 ```
 
 ### Converting the TV show library
@@ -223,6 +263,10 @@ tmux new -s movies
 tmux new -s chunk1
 ./convert_mkv_to_mp4.sh --chunk=1 --preset=fast
 # ~5-8 days total for 5135 episodes
+
+# Fastest option — GPU + parallel + relaxed quality
+./convert_mkv_to_mp4.sh --chunk=1 --hwaccel --parallel=3 --crf=23
+# ~1-3 days total depending on hardware
 ```
 
 ### Auditing after conversion
@@ -280,6 +324,9 @@ sudo smartctl -a /dev/sdb
 ```bash
 # Required for convert_mkv_to_mp4.sh
 sudo apt install ffmpeg bc
+
+# Optional: VAAPI hardware acceleration (Intel GPU)
+sudo apt install vainfo intel-media-va-driver-non-free
 
 # Required for archive.sh / setup_cron.sh
 # rsync and cron are included in Mint 22.2 by default
