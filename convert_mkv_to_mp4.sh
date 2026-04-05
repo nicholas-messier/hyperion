@@ -2,8 +2,9 @@
 
 # ============================================================
 # convert_mkv_to_mp4.sh
-# Converts MKV files to MP4 (H.264/AAC) for Plex/ErsatzTV
-# direct play compatibility on iPhone and other devices.
+# Converts video files (MKV/AVI/MP4/M4V/FLV/WMV) to MP4
+# (H.264/AAC) for Plex/ErsatzTV direct play compatibility
+# on iPhone and other devices.
 #
 # Usage:
 #   ./convert_mkv_to_mp4.sh                        # Normal run, medium preset
@@ -136,7 +137,7 @@ VAAPI_RENDER_DEVICE=""  # e.g. /dev/dri/renderD128
 # ── Print header ─────────────────────────────────────────────
 print_header() {
     echo -e "\n${BOLD}${CYAN}=========================================${NC}"
-    echo -e "${BOLD}${CYAN}   MKV -> MP4 Converter for Plex/ErsatzTV${NC}"
+    echo -e "${BOLD}${CYAN}   Video -> MP4 Converter for Plex/ErsatzTV${NC}"
     echo -e "${BOLD}${CYAN}=========================================${NC}"
     echo -e "  Preset : ${BOLD}$PRESET${NC}"
     echo -e "  CRF    : ${BOLD}$CRF${NC}"
@@ -608,12 +609,12 @@ run_plan_mode() {
         (( RATE_ENCODE < 1 )) && RATE_ENCODE=1
     fi
 
-    echo "Scanning $SOURCE_DIR for MKV files..."
-    mapfile -t ALL_FILES < <(find "$SOURCE_DIR" -type f -iname "*.mkv" | sort)
+    echo "Scanning $SOURCE_DIR for video files..."
+    mapfile -t ALL_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" \) | sort)
     local total=${#ALL_FILES[@]}
 
     if (( total == 0 )); then
-        echo -e "${YELLOW}No MKV files found.${NC}"
+        echo -e "${YELLOW}No video files found.${NC}"
         exit 0
     fi
     echo -e "Found ${BOLD}${total}${NC} files across $(echo "${ALL_FILES[@]}" | tr ' ' '\n' | sed "s|${SOURCE_DIR}/||" | cut -d/ -f1 | sort -u | wc -l) series.\n"
@@ -781,7 +782,7 @@ fi
 print_header
 
 # ── Prompt: source folder ────────────────────────────────────
-echo -e "${BOLD}Source folder${NC} (where your MKV files are):"
+echo -e "${BOLD}Source folder${NC} (where your video files are):"
 read -rp "  Path: " SOURCE_DIR
 SOURCE_DIR="${SOURCE_DIR%/}"
 
@@ -834,14 +835,14 @@ echo ""
 read -rp "Proceed? [y/N]: " CONFIRM
 [[ "${CONFIRM,,}" != "y" ]] && echo "Aborted." && exit 0
 
-# ── Find MKV files ───────────────────────────────────────────
+# ── Find video files ──────────────────────────────────────────
 echo ""
-echo "Scanning for .mkv files..."
-mapfile -t MKV_FILES < <(find "$SOURCE_DIR" -type f -iname "*.mkv" | sort)
+echo "Scanning for video files..."
+mapfile -t MKV_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" \) | sort)
 TOTAL=${#MKV_FILES[@]}
 
 if (( TOTAL == 0 )); then
-    echo -e "${YELLOW}No MKV files found.${NC}"
+    echo -e "${YELLOW}No video files found.${NC}"
     exit 0
 fi
 
@@ -896,7 +897,7 @@ if (( PARALLEL > 1 )); then
     for i in "${!MKV_FILES[@]}"; do
         INPUT="${MKV_FILES[$i]}"
         REL_PATH="${INPUT#${SOURCE_DIR}/}"
-        OUTPUT="${OUTPUT_DIR}/${REL_PATH%.mkv}.mp4"
+        OUTPUT="${OUTPUT_DIR}/${REL_PATH%.*}.mp4"
         CURRENT=$(( i + 1 ))
 
         if [[ -f "$OUTPUT" ]]; then
@@ -943,7 +944,7 @@ else
     for i in "${!MKV_FILES[@]}"; do
         INPUT="${MKV_FILES[$i]}"
         REL_PATH="${INPUT#${SOURCE_DIR}/}"
-        OUTPUT="${OUTPUT_DIR}/${REL_PATH%.mkv}.mp4"
+        OUTPUT="${OUTPUT_DIR}/${REL_PATH%.*}.mp4"
         CURRENT=$(( i + 1 ))
 
         if [[ -f "$OUTPUT" ]]; then
