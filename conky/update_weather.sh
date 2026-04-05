@@ -28,7 +28,7 @@ get_icon() {
         echo ""   # thunderstorm
     elif [[ $cond =~ snow|blizzard|flurr ]]; then
         echo ""   # snow
-    elif [[ $cond =~ rain|shower|drizzle ]]; then
+    elif [[ $cond =~ rain|shower|drizzle|precip ]]; then
         echo ""   # rain
     elif [[ $cond =~ sleet|ice ]]; then
         echo ""   # sleet
@@ -50,6 +50,14 @@ WIND_MS=$(echo "$DATA" | jq -r '.properties.windSpeed.value')
 WIND_DIR=$(echo "$DATA" | jq -r '.properties.windDirection.value')
 COND=$(echo "$DATA" | jq -r '.properties.textDescription')
 
+# Strip useless "Unknown Precipitation" entirely
+[[ "$COND" =~ ^[Uu]nknown[[:space:]]+(.+) ]] && COND="${BASH_REMATCH[1]}"
+[[ "${COND,,}" == "precipitation" ]] && COND=""
+[ "$COND" = "null" ] || [ -z "$COND" ] && COND="N/A"
+
+# Truncate long conditions to fit fixed-width widget
+[ ${#COND} -gt 24 ] && COND="${COND:0:22}.."
+
 [ "$TEMP_C" != "null" ] && TEMP_F=$(echo "$TEMP_C" | c_to_f)
 [ "$FEELS_C" != "null" ] && FEELS_F=$(echo "$FEELS_C" | c_to_f)
 [ "$WIND_MS" != "null" ] && WIND_MPH=$(echo "$WIND_MS" | ms_to_mph)
@@ -68,8 +76,9 @@ FORECAST_DATA=$(curl -fsS "$FORECAST_URL")
 TODAY_HIGH=$(echo "$FORECAST_DATA" | jq -r '.properties.periods[0].temperature')
 
 {
-echo "$ICON  $COND  $ICON"
-echo "Temp: ${TEMP_F:-N/A}°F / ${TEMP_C_DISPLAY:-N/A}°C (Feels ${FEELS_F:-N/A}°F)"
-echo "High Today: ${TODAY_HIGH:-N/A}°F"
-echo "Humidity: ${HUMIDITY:-N/A}%"
+echo "$ICON  $COND"
+echo "Temp:  ${TEMP_F:-N/A}°F (Feels ${FEELS_F:-N/A}°F)"
+echo "High:  ${TODAY_HIGH:-N/A}°F"
+echo "Humid: ${HUMIDITY:-N/A}%"
+echo "Wind:  ${WIND_MPH:-N/A} mph $WIND_ARROW"
 } > "$OUT"
