@@ -13,6 +13,7 @@ and a conky desktop dashboard.
 | [`conversion/`](conversion/) | Video conversion pipeline — batch convert, sync, verify, and audit video files for Plex/ErsatzTV direct play | [conversion/README.md](conversion/README.md) |
 | [`backup/`](backup/) | Nightly rsync backup with optional external drive export and cron setup | [backup/README.md](backup/README.md) |
 | [`conky/`](conky/) | Desktop dashboard widgets — clock, weather, Celtics schedule, system stats | [conky/README.md](conky/README.md) |
+| [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [sports-betting-advisor/README.md](sports-betting-advisor/README.md) |
 
 ---
 
@@ -62,6 +63,9 @@ sudo apt install vainfo intel-media-va-driver-non-free
 
 # Conky desktop widgets
 sudo apt install conky-all jq curl lm-sensors
+
+# Sports betting advisor
+pip install -r sports-betting-advisor/requirements.txt
 
 # Recommended
 sudo apt install tmux ncdu
