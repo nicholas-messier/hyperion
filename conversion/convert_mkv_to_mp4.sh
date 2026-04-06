@@ -610,7 +610,7 @@ run_plan_mode() {
     fi
 
     echo "Scanning $SOURCE_DIR for video files..."
-    mapfile -t ALL_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" \) | sort)
+    mapfile -t ALL_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" -o -iname "*.mpg" \) | sort)
     local total=${#ALL_FILES[@]}
 
     if (( total == 0 )); then
@@ -838,7 +838,7 @@ read -rp "Proceed? [y/N]: " CONFIRM
 # ── Find video files ──────────────────────────────────────────
 echo ""
 echo "Scanning for video files..."
-mapfile -t MKV_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" \) | sort)
+mapfile -t MKV_FILES < <(find "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mp4" -o -iname "*.m4v" -o -iname "*.flv" -o -iname "*.wmv" -o -iname "*.mpg" \) | sort)
 TOTAL=${#MKV_FILES[@]}
 
 if (( TOTAL == 0 )); then
