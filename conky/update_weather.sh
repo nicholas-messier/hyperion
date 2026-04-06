@@ -10,7 +10,7 @@ DATA=$(curl -fsS "$OBS_URL")
 [ -z "$DATA" ] && exit 1
 
 c_to_f() { awk '{printf "%.0f", ($1 * 9/5) + 32}'; }
-ms_to_mph() { awk '{printf "%.0f", $1 * 2.237}'; }
+kmh_to_mph() { awk '{printf "%.0f", $1 * 0.6214}'; }
 
 deg_to_arrow() {
     deg=$1
@@ -46,7 +46,7 @@ get_icon() {
 TEMP_C=$(echo "$DATA" | jq -r '.properties.temperature.value')
 FEELS_C=$(echo "$DATA" | jq -r '.properties.windChill.value // .properties.heatIndex.value // .properties.temperature.value')
 HUMIDITY=$(echo "$DATA" | jq -r '.properties.relativeHumidity.value' | awk '{printf "%.0f", $1}')
-WIND_MS=$(echo "$DATA" | jq -r '.properties.windSpeed.value')
+WIND_KMH=$(echo "$DATA" | jq -r '.properties.windSpeed.value')
 WIND_DIR=$(echo "$DATA" | jq -r '.properties.windDirection.value')
 COND=$(echo "$DATA" | jq -r '.properties.textDescription')
 
@@ -60,7 +60,7 @@ COND=$(echo "$DATA" | jq -r '.properties.textDescription')
 
 [ "$TEMP_C" != "null" ] && TEMP_F=$(echo "$TEMP_C" | c_to_f)
 [ "$FEELS_C" != "null" ] && FEELS_F=$(echo "$FEELS_C" | c_to_f)
-[ "$WIND_MS" != "null" ] && WIND_MPH=$(echo "$WIND_MS" | ms_to_mph)
+[ "$WIND_KMH" != "null" ] && WIND_MPH=$(echo "$WIND_KMH" | kmh_to_mph)
 
 TEMP_C_DISPLAY=${TEMP_C:+$(printf "%.0f" "$TEMP_C")}
 WIND_ARROW=$(deg_to_arrow "$WIND_DIR")
@@ -77,7 +77,7 @@ TODAY_HIGH=$(echo "$FORECAST_DATA" | jq -r '.properties.periods[0].temperature')
 
 {
 echo "$ICON  $COND"
-echo "Temp:  ${TEMP_F:-N/A}°F (Feels ${FEELS_F:-N/A}°F)"
+echo "Temp:  ${TEMP_F:-N/A}°F / ${TEMP_C_DISPLAY:-N/A}°C (Feels ${FEELS_F:-N/A}°F)"
 echo "High:  ${TODAY_HIGH:-N/A}°F"
 echo "Humid: ${HUMIDITY:-N/A}%"
 echo "Wind:  ${WIND_MPH:-N/A} mph $WIND_ARROW"
