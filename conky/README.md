@@ -9,13 +9,12 @@ Boston Celtics schedule, system stats, disk usage, and service status at a glanc
 
 | File | Purpose |
 |------|---------|
-| `conky-clock.conf` | Main dashboard widget (top-right) — clock, weather, Celtics, system info, services |
-| `conky-system.conf` | System stats widget — CPU, memory, disk, network |
-| `conky-weather.conf` | Standalone weather-only widget (top-left) |
+| `conky-clock.conf` | Main dashboard widget (top-right) — clock, date, world time zones, weather, Celtics |
+| `conky-system.conf` | System stats widget — CPU, memory, disk, services, conversion pipeline status |
+| `conversion_status.sh` | Helper script used by conky-system to detect active conversion scripts (convert, sync, verify) |
 | `update_weather.sh` | Fetches current conditions from NWS API (KLCI station) -> `~/.cache/wttr_laconia.txt` |
 | `update_celtics.sh` | Fetches next Celtics game + record from ESPN API -> `~/.cache/celtics_*.txt` |
 | `install.sh` | One-command setup: installs deps, deploys configs, sets up cron, starts conky |
-| `back_concky-clock.conf` | Backup of an earlier clock config version |
 
 ---
 
