@@ -12,12 +12,12 @@ Confirm the output before proceeding with any tasks. This ensures all work, comm
 
 ## Directory Logic
 
-/data - Main data storage drive. Used for Media files
-/data/plex_data - main home of all tv show and moive files
-/media/nmessier/NicksData/sda1 - External drive used for backup of media files
-/home/nmessier/bin - main directory for scripts and running devin
-sdb - data drive
-sdc - backup of data drive. backup done by cron job
+- `/data` - Main data storage drive. Used for Media files
+- `/data/plex_data` - main home of all tv show and moive files
+- `/media/nmessier/NicksData/sda1` - External drive used for backup of media files
+- `/home/nmessier/bin` - main directory for scripts and running devin
+- `sdb` - data drive
+- `sdc` - backup of data drive. backup done by cron job
 
 ## Rules
 
