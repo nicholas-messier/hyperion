@@ -31,7 +31,20 @@ The install script:
 3. Copies conky configs to `~/.config/conky/`
 4. Adds cron jobs (weather every 20 min, Celtics every 30 min)
 5. Runs an initial data fetch so conky has data immediately
-6. Optionally starts conky
+6. Creates XDG autostart `.desktop` entries in `~/.config/autostart/` so both panels launch on login
+7. Optionally starts conky
+
+---
+
+## Autostart
+
+Both conky panels auto-start on login via XDG `.desktop` entries:
+
+- `~/.config/autostart/World Clock Conky.desktop`
+- `~/.config/autostart/System Conky.desktop`
+
+These are created automatically by `install.sh`. To disable autostart, delete the files or set
+`X-GNOME-Autostart-enabled=false` inside them.
 
 ---
 

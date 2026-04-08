@@ -9,7 +9,8 @@
 #   2. Copies conky configs to ~/.config/conky/
 #   3. Adds cron jobs for weather + Celtics data updates
 #   4. Runs the data scripts once so conky has data on first launch
-#   5. Optionally starts conky
+#   5. Sets up XDG autostart entries so conky launches on login
+#   6. Optionally starts conky
 
 set -euo pipefail
 
@@ -119,7 +120,39 @@ ok "Cron jobs installed"
 echo "     Weather updates:  every 20 minutes"
 echo "     Celtics updates:  every 30 minutes"
 
-# ---------- 5. Initial data fetch ----------
+# ---------- 5. XDG autostart entries ----------
+info "Setting up autostart entries..."
+
+AUTOSTART_DIR="$HOME/.config/autostart"
+mkdir -p "$AUTOSTART_DIR"
+
+cat > "$AUTOSTART_DIR/World Clock Conky.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Exec=conky -d -c $CONKY_DIR/conky-clock.conf
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Name[en_US]=World Clock Conky
+Comment[en_US]=Conky clock and info dashboard (top-right)
+X-GNOME-Autostart-Delay=3
+EOF
+ok "Autostart entry: World Clock Conky"
+
+cat > "$AUTOSTART_DIR/System Conky.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Exec=conky -d -c $CONKY_DIR/conky-system.conf
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Name[en_US]=System Conky
+Comment[en_US]=Conky system stats dashboard (below clock)
+X-GNOME-Autostart-Delay=3
+EOF
+ok "Autostart entry: System Conky"
+
+# ---------- 6. Initial data fetch ----------
 info "Running initial data fetch (weather + Celtics)..."
 mkdir -p "$HOME/.cache"
 
@@ -135,7 +168,7 @@ else
     warn "Celtics fetch failed — will retry on next cron run (may fail in offseason)"
 fi
 
-# ---------- 6. Optionally start conky ----------
+# ---------- 7. Optionally start conky ----------
 echo ""
 read -rp "Start conky now? [Y/n] " ans
 ans=${ans:-Y}
@@ -146,10 +179,6 @@ if [[ "$ans" =~ ^[Yy] ]]; then
     conky -c "$CONKY_DIR/conky-clock.conf" -d
     conky -c "$CONKY_DIR/conky-system.conf" -d
     ok "Conky started (conky-clock.conf + conky-system.conf)"
-    echo ""
-    echo "To auto-start conky on login, add these to your startup applications:"
-    echo "  conky -c $CONKY_DIR/conky-clock.conf -d"
-    echo "  conky -c $CONKY_DIR/conky-system.conf -d"
 else
     info "Skipped — start manually with:"
     echo "  conky -c $CONKY_DIR/conky-clock.conf -d"
@@ -157,14 +186,16 @@ else
 fi
 
 echo ""
-ok "Conky setup complete!"
+ok "Conky setup complete — both panels will auto-start on login!"
 echo ""
 echo "Files:"
-echo "  Configs:  $CONKY_DIR/conky-clock.conf"
-echo "            $CONKY_DIR/conky-system.conf"
-echo "            $CONKY_DIR/conky-weather.conf"
-echo "  Scripts:  $SCRIPT_DIR/update_weather.sh"
-echo "            $SCRIPT_DIR/update_celtics.sh"
-echo "  Cache:    ~/.cache/wttr_laconia.txt"
-echo "            ~/.cache/celtics_record.txt"
-echo "            ~/.cache/celtics_next.txt"
+echo "  Configs:    $CONKY_DIR/conky-clock.conf"
+echo "              $CONKY_DIR/conky-system.conf"
+echo "              $CONKY_DIR/conky-weather.conf"
+echo "  Autostart:  $AUTOSTART_DIR/World Clock Conky.desktop"
+echo "              $AUTOSTART_DIR/System Conky.desktop"
+echo "  Scripts:    $SCRIPT_DIR/update_weather.sh"
+echo "              $SCRIPT_DIR/update_celtics.sh"
+echo "  Cache:      ~/.cache/wttr_laconia.txt"
+echo "              ~/.cache/celtics_record.txt"
+echo "              ~/.cache/celtics_next.txt"
