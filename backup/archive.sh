@@ -92,9 +92,9 @@ mkdir -p "$STAGING" "$ARCHIVE_DIR"
 log_color "$CYAN" "[*] Syncing $SOURCE --> $STAGING ..."
 log "INFO" "Starting local rsync..."
 
-# --delete-delay: safer than --delete (collects deletes til end)
+# --delete-before: deletes removed files first, then transfers new ones
 # --log-file: rsync writes its own transfer log alongside ours
-if rsync -a --delete-delay \
+if rsync -a --delete-before \
     --log-file="$LOG_DIR/rsync_local_$(date '+%Y-%m-%d').log" \
     "$SOURCE" "$STAGING" >> "$LOG_FILE" 2>&1; then
     log "INFO" "Local sync complete: $STAGING"
@@ -145,7 +145,7 @@ if $EXPORT; then
 
     # Rsync to external — no --progress in log mode (too noisy)
     # Use --info=progress2 only when running interactively
-    RSYNC_FLAGS="-ah --delete-delay --no-owner --no-group"
+    RSYNC_FLAGS="-ah --delete-before --no-owner --no-group"
     if [ -t 1 ]; then
         RSYNC_FLAGS="$RSYNC_FLAGS --info=progress2"
     fi
