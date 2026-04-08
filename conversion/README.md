@@ -1,8 +1,11 @@
 # Video Conversion Tools
 
-Batch video conversion pipeline for the Hyperion Plex/ErsatzTV library. Converts non-MP4 video files
+Batch video conversion pipeline for a Plex/ErsatzTV media library. Converts non-MP4 video files
 to H.264/AAC `.mp4` for direct play compatibility on iPhone and other devices, then syncs and verifies
 between source and destination drives.
+
+Paths are configured in `config.env` at the repo root. See
+[`config.env.example`](../config.env.example) for available settings.
 
 ---
 
@@ -112,11 +115,11 @@ Two-phase bidirectional sync between source and destination drives.
 tmux new-session -d -s sync 'bash sync_converted.sh 2>&1 | tee /tmp/sync_output.log'
 ```
 
-**Configuration** (edit variables at top of script):
+**Configuration** (via `config.env`):
 ```bash
-SRC="/data/plex_data"
-DST="/media/nmessier/NicksData/sda1"
-DIRS=("Movies" "TV Shows")
+MEDIA_SOURCE="/path/to/media"               # Source media library
+EXTERNAL_DRIVE_MEDIA="/path/to/external"    # Destination drive
+MEDIA_DIRS=("Movies" "TV Shows")            # Subdirectories to sync
 ```
 
 ---
@@ -130,12 +133,7 @@ Verifies that every video file in the source has a corresponding `.mp4` in the d
 ./verify_conversion.sh
 ```
 
-**Configuration** (edit variables at top of script):
-```bash
-SRC="/data/plex_data"
-DST="/media/nmessier/NicksData/sda1"
-DIRS=("Movies" "TV Shows")
-```
+Uses the same `config.env` settings as `sync_converted.sh`.
 
 ---
 

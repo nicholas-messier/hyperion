@@ -1,9 +1,17 @@
 #!/bin/bash
 
-OUT="$HOME/.cache/wttr_laconia.txt"
+# Source config.env from repo root for default settings
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [[ -f "$REPO_ROOT/config.env" ]]; then
+    # shellcheck source=../config.env
+    source "$REPO_ROOT/config.env"
+fi
+
+OUT="$HOME/.cache/weather.txt"
 mkdir -p "$HOME/.cache"
 
-STATION="KLCI"
+STATION="${WEATHER_STATION:?Set WEATHER_STATION in config.env}"
 OBS_URL="https://api.weather.gov/stations/$STATION/observations/latest"
 
 DATA=$(curl -fsS "$OBS_URL")

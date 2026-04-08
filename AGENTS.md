@@ -12,15 +12,21 @@ Confirm the output before proceeding with any tasks. This ensures all work, comm
 
 ## Directory Logic
 
-- `/data` - Main data storage drive. Used for Media files
-- `/data/plex_data` - main home of all tv show and moive files
-- `/media/nmessier/NicksData/sda1` - External drive used for backup of media files
-- `/home/nmessier/bin` - main directory for scripts and running devin
-- `sdc` - data drive (`/data` is a symlink to this drive)
-- `sdb` - archive/backup of data drive. backup done by sudo cron job
+Server-specific paths and drive mappings are defined in `config.env` at the repo root.
+See `config.env.example` for the full list of configurable values.
+
+Key config variables:
+- `MEDIA_SOURCE` - Main media library path (Plex/ErsatzTV content)
+- `DATA_DRIVE_PATH` - Primary data drive mount
+- `ARCHIVE_DRIVE_PATH` - Archive/backup drive mount
+- `EXTERNAL_DRIVE_MEDIA` - External drive media path
+- `BIN_DIR` - This scripts repository
 
 ## Rules
 
-new scripts should be created in a subdirectory under /bin.
-There needs to be a readme with detailed information in the sub directory
-the readme in the main bin directory needs to be updated to link and include the new subdirectories
+New scripts should be created in a subdirectory under the repo root.
+There needs to be a README with detailed information in the subdirectory.
+The README in the main directory needs to be updated to link and include the new subdirectories.
+
+All server-specific paths must go in `config.env` (git-ignored), not hardcoded in scripts.
+No IP addresses, drive serial numbers, or personal paths in files committed to git.

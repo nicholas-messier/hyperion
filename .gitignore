@@ -11,6 +11,10 @@ __pycache__/
 *.pem
 *.key
 *.crt
+config.env
+
+# Server-specific docs (not for GitHub)
+SERVER_INFO.md
 
 # OS
 .DS_Store

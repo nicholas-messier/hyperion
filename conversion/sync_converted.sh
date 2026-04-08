@@ -16,9 +16,21 @@
 # Options:
 #   --dry-run   Show what would be done without making changes
 
-SRC="/data/plex_data"
-DST="/media/nmessier/NicksData/sda1"
-DIRS=("Movies" "TV Shows")
+# Source config.env from repo root for default paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [[ -f "$REPO_ROOT/config.env" ]]; then
+    # shellcheck source=../config.env
+    source "$REPO_ROOT/config.env"
+fi
+
+SRC="${MEDIA_SOURCE:?Set MEDIA_SOURCE in config.env}"
+DST="${EXTERNAL_DRIVE_MEDIA:?Set EXTERNAL_DRIVE_MEDIA in config.env}"
+if [[ -z "${MEDIA_DIRS+x}" ]]; then
+    DIRS=("Movies" "TV Shows")
+else
+    DIRS=("${MEDIA_DIRS[@]}")
+fi
 
 VIDEO_EXT="mkv|avi|divx|mpg|flv|m4v|wmv"
 

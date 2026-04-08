@@ -10,16 +10,24 @@
 
 set -euo pipefail
 
+# Source config.env from repo root for default paths
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [[ -f "$REPO_ROOT/config.env" ]]; then
+    # shellcheck source=../config.env
+    source "$REPO_ROOT/config.env"
+fi
+
 # -- Configuration ---------------------------------------------
-SOURCE="/data/"
-STAGING="/archive/nicks_data"
-ARCHIVE_DIR="/archive"
-EXTERNAL_DEV="/dev/sda2"
-MOUNT_POINT="/mnt/usb-Seagate_Expansion_HDD_00000000NT17YYZV-0:0-part2"
-EXTERNAL_TARGET="$MOUNT_POINT/nicks_data_backup"
-LOG_DIR="/var/log/archive"
+SOURCE="${BACKUP_SOURCE:-/data/}"
+STAGING="${BACKUP_STAGING:-/archive/nicks_data}"
+ARCHIVE_DIR="$(dirname "$STAGING")"
+EXTERNAL_DEV="${EXTERNAL_DRIVE_DEV:-/dev/sda2}"
+MOUNT_POINT="${EXTERNAL_DRIVE_MOUNT:-/mnt/external}"
+EXTERNAL_TARGET="${BACKUP_EXTERNAL_TARGET:-$MOUNT_POINT/nicks_data_backup}"
+LOG_DIR="${BACKUP_LOG_DIR:-/var/log/archive}"
 LOG_FILE="$LOG_DIR/archive_$(date '+%Y-%m-%d').log"
-RETENTION_DAYS=30   # How many days of logs to keep
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 
 EXPORT=false
 

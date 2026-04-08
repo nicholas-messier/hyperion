@@ -5,16 +5,32 @@
 #   cd ~/bin/conky && ./install.sh
 #
 # What it does:
-#   1. Installs dependencies (conky, jq, curl, lm-sensors)
-#   2. Copies conky configs to ~/.config/conky/
-#   3. Adds cron jobs for weather + Celtics data updates
-#   4. Runs the data scripts once so conky has data on first launch
-#   5. Sets up XDG autostart entries so conky launches on login
-#   6. Optionally starts conky
+#   1. Sources config.env for server-specific values
+#   2. Installs dependencies (conky, jq, curl, lm-sensors)
+#   3. Generates conky configs from templates using config.env values
+#   4. Deploys configs to ~/.config/conky/
+#   5. Adds cron jobs for weather + sports data updates
+#   6. Runs the data scripts once so conky has data on first launch
+#   7. Sets up XDG autostart entries so conky launches on login
+#   8. Optionally starts conky
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ---------- 0. Source config.env ----------
+if [[ ! -f "$REPO_ROOT/config.env" ]]; then
+    echo "ERROR: config.env not found at $REPO_ROOT/config.env"
+    echo ""
+    echo "Copy the example and fill in your values:"
+    echo "  cp $REPO_ROOT/config.env.example $REPO_ROOT/config.env"
+    echo "  \$EDITOR $REPO_ROOT/config.env"
+    exit 1
+fi
+
+# shellcheck source=../config.env
+source "$REPO_ROOT/config.env"
 
 # Colors (disabled when piped)
 if [ -t 1 ]; then
@@ -68,22 +84,107 @@ else
     ok "JetBrainsMono Nerd Font found"
 fi
 
-# ---------- 2. Deploy conky configs ----------
-info "Deploying conky configs to ~/.config/conky/..."
+# ---------- 2. Generate and deploy conky configs ----------
+info "Generating conky configs from templates..."
 
 CONKY_DIR="$HOME/.config/conky"
 mkdir -p "$CONKY_DIR"
 
-for conf in conky-clock.conf conky-system.conf conky-weather.conf; do
-    if [ -f "$CONKY_DIR/$conf" ]; then
-        if ! diff -q "$SCRIPT_DIR/$conf" "$CONKY_DIR/$conf" &>/dev/null; then
-            warn "$conf already exists and differs — backing up to ${conf}.bak"
-            cp "$CONKY_DIR/$conf" "$CONKY_DIR/${conf}.bak"
+# Build timezone lines for conky-clock.conf from CONKY_TIMEZONES
+# Format: "TZ_ID:Label,TZ_ID:Label,..."
+generate_timezone_lines() {
+    local tz_config="${CONKY_TIMEZONES:-America/New_York:Eastern}"
+    local lines=""
+    IFS=',' read -ra TZ_ENTRIES <<< "$tz_config"
+    for entry in "${TZ_ENTRIES[@]}"; do
+        local tz_id="${entry%%:*}"
+        local label="${entry#*:}"
+        # Pad label to align the time output (14 chars)
+        local padded
+        padded=$(printf '%-14s' "$label:")
+        lines+="\${color #add8e6}${padded}\${color}  \${tztime ${tz_id} %I:%M %p}"$'\n'
+    done
+    # Remove trailing newline
+    echo -n "${lines%$'\n'}"
+}
+
+TIMEZONE_LINES=$(generate_timezone_lines)
+
+# Template substitution function
+apply_template() {
+    local src="$1"
+    local dst="$2"
+
+    # Backup existing config if it differs
+    if [ -f "$dst" ]; then
+        # Compare against what we'd generate, not the template
+        local tmp
+        tmp=$(mktemp)
+        cp "$src" "$tmp"
+        # Apply substitutions to temp file
+        sed -i \
+            -e "s|__WEATHER_LOCATION__|${WEATHER_LOCATION:-Your City}|g" \
+            -e "s|__SPORTS_TEAM_NAME__|${SPORTS_TEAM_NAME:-Team}|g" \
+            -e "s|__SERVER_HOSTNAME__|$(hostname)|g" \
+            -e "s|__CONKY_DATA_DISK__|${CONKY_DATA_DISK:-/}|g" \
+            -e "s|__CONKY_ARCHIVE_DISK__|${CONKY_ARCHIVE_DISK:-/}|g" \
+            -e "s|__CONKY_EXTERNAL_DISK__|${CONKY_EXTERNAL_DISK:-/mnt/external}|g" \
+            -e "s|__PLEX_SERVICE__|${PLEX_SERVICE:-plexmediaserver}|g" \
+            -e "s|__MINECRAFT_SERVICE__|${MINECRAFT_SERVICE:-minecraft.service}|g" \
+            -e "s|__ERSATZTV_CONTAINER__|${ERSATZTV_CONTAINER:-ersatztv}|g" \
+            -e "s|__BIN_DIR__|${BIN_DIR:-$REPO_ROOT}|g" \
+            "$tmp"
+
+        if ! diff -q "$tmp" "$dst" &>/dev/null; then
+            warn "$(basename "$dst") already exists and differs — backing up to $(basename "$dst").bak"
+            cp "$dst" "${dst}.bak"
+        fi
+        rm -f "$tmp"
+    fi
+
+    cp "$src" "$dst"
+
+    # Apply all template substitutions
+    sed -i \
+        -e "s|__WEATHER_LOCATION__|${WEATHER_LOCATION:-Your City}|g" \
+        -e "s|__SPORTS_TEAM_NAME__|${SPORTS_TEAM_NAME:-Team}|g" \
+        -e "s|__SERVER_HOSTNAME__|$(hostname)|g" \
+        -e "s|__CONKY_DATA_DISK__|${CONKY_DATA_DISK:-/}|g" \
+        -e "s|__CONKY_ARCHIVE_DISK__|${CONKY_ARCHIVE_DISK:-/}|g" \
+        -e "s|__CONKY_EXTERNAL_DISK__|${CONKY_EXTERNAL_DISK:-/mnt/external}|g" \
+        -e "s|__PLEX_SERVICE__|${PLEX_SERVICE:-plexmediaserver}|g" \
+        -e "s|__MINECRAFT_SERVICE__|${MINECRAFT_SERVICE:-minecraft.service}|g" \
+        -e "s|__ERSATZTV_CONTAINER__|${ERSATZTV_CONTAINER:-ersatztv}|g" \
+        -e "s|__BIN_DIR__|${BIN_DIR:-$REPO_ROOT}|g" \
+        "$dst"
+
+    # Replace timezone placeholder with generated lines (multi-line)
+    if grep -q "__TIMEZONE_LINES__" "$dst"; then
+        local escaped_tz
+        escaped_tz=$(echo "$TIMEZONE_LINES" | sed 's/[&/\]/\\&/g; s/$/\\/' | sed '$ s/\\$//')
+        sed -i "s|__TIMEZONE_LINES__|${escaped_tz}|" "$dst"
+    fi
+}
+
+# Deploy clock and system configs from templates
+for conf in conky-clock.conf conky-system.conf; do
+    if [ -f "$SCRIPT_DIR/$conf" ]; then
+        apply_template "$SCRIPT_DIR/$conf" "$CONKY_DIR/$conf"
+        ok "Generated and installed $conf"
+    fi
+done
+
+# Copy weather config as-is (no template vars)
+if [ -f "$SCRIPT_DIR/conky-weather.conf" ]; then
+    if [ -f "$CONKY_DIR/conky-weather.conf" ]; then
+        if ! diff -q "$SCRIPT_DIR/conky-weather.conf" "$CONKY_DIR/conky-weather.conf" &>/dev/null; then
+            warn "conky-weather.conf already exists and differs — backing up"
+            cp "$CONKY_DIR/conky-weather.conf" "$CONKY_DIR/conky-weather.conf.bak"
         fi
     fi
-    cp "$SCRIPT_DIR/$conf" "$CONKY_DIR/$conf"
-    ok "Installed $conf"
-done
+    cp "$SCRIPT_DIR/conky-weather.conf" "$CONKY_DIR/conky-weather.conf"
+    ok "Installed conky-weather.conf"
+fi
 
 # ---------- 3. Make helper scripts executable ----------
 info "Setting permissions on helper scripts..."
@@ -118,7 +219,7 @@ add_cron_entry "$CELTICS_CRON" "update_celtics.sh"
 echo "$CURRENT_CRONTAB" | sed '/^$/d' | crontab -
 ok "Cron jobs installed"
 echo "     Weather updates:  every 20 minutes"
-echo "     Celtics updates:  every 30 minutes"
+echo "     Sports updates:   every 30 minutes"
 
 # ---------- 5. XDG autostart entries ----------
 info "Setting up autostart entries..."
@@ -153,7 +254,7 @@ EOF
 ok "Autostart entry: System Conky"
 
 # ---------- 6. Initial data fetch ----------
-info "Running initial data fetch (weather + Celtics)..."
+info "Running initial data fetch..."
 mkdir -p "$HOME/.cache"
 
 if "$SCRIPT_DIR/update_weather.sh" 2>/dev/null; then
@@ -163,9 +264,9 @@ else
 fi
 
 if "$SCRIPT_DIR/update_celtics.sh" 2>/dev/null; then
-    ok "Celtics data fetched"
+    ok "Sports data fetched"
 else
-    warn "Celtics fetch failed — will retry on next cron run (may fail in offseason)"
+    warn "Sports fetch failed — will retry on next cron run (may fail in offseason)"
 fi
 
 # ---------- 7. Optionally start conky ----------
@@ -191,11 +292,10 @@ echo ""
 echo "Files:"
 echo "  Configs:    $CONKY_DIR/conky-clock.conf"
 echo "              $CONKY_DIR/conky-system.conf"
-echo "              $CONKY_DIR/conky-weather.conf"
 echo "  Autostart:  $AUTOSTART_DIR/World Clock Conky.desktop"
 echo "              $AUTOSTART_DIR/System Conky.desktop"
 echo "  Scripts:    $SCRIPT_DIR/update_weather.sh"
 echo "              $SCRIPT_DIR/update_celtics.sh"
-echo "  Cache:      ~/.cache/wttr_laconia.txt"
+echo "  Cache:      ~/.cache/weather.txt"
 echo "              ~/.cache/celtics_record.txt"
 echo "              ~/.cache/celtics_next.txt"

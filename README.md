@@ -1,8 +1,32 @@
-# Hyperion Server Scripts
+# Media Server Scripts
 
-Utility scripts for **Hyperion** — a high-end Linux media server running Mint 22.2,
-managing a Plex/ErsatzTV library with automated video conversion, nightly backups,
-and a conky desktop dashboard.
+Utility scripts for a Linux media server running Plex, ErsatzTV, and Pi-hole
+with automated video conversion, nightly backups, and a conky desktop dashboard.
+
+Designed to be cloned onto a new server and configured via a single `config.env` file.
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone the repo
+git clone <repo-url> ~/bin
+cd ~/bin
+
+# 2. Create your config
+cp config.env.example config.env
+$EDITOR config.env   # Fill in your paths, drives, and preferences
+
+# 3. Install dependencies
+sudo apt install ffmpeg bc conky-all jq curl lm-sensors tmux ncdu
+
+# 4. Set up components (see individual READMEs)
+cd conky && ./install.sh        # Desktop dashboard
+cd backup && sudo bash setup_cron.sh  # Nightly backups
+```
+
+See [docs/setup.md](docs/setup.md) for a full deployment walkthrough.
 
 ---
 
@@ -10,45 +34,27 @@ and a conky desktop dashboard.
 
 | Directory | Description | Details |
 |-----------|-------------|---------|
-| [`conversion/`](conversion/) | Video conversion pipeline — batch convert, sync, verify, and audit video files for Plex/ErsatzTV direct play | [conversion/README.md](conversion/README.md) |
-| [`backup/`](backup/) | Nightly rsync backup with optional external drive export and cron setup | [backup/README.md](backup/README.md) |
-| [`conky/`](conky/) | Desktop dashboard widgets — clock, weather, Celtics schedule, system stats | [conky/README.md](conky/README.md) |
-| [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [sports-betting-advisor/README.md](sports-betting-advisor/README.md) |
+| [`conversion/`](conversion/) | Video conversion pipeline — batch convert, sync, verify, and audit video files for Plex/ErsatzTV direct play | [README](conversion/README.md) |
+| [`backup/`](backup/) | Nightly rsync backup with optional external drive export and cron setup | [README](backup/README.md) |
+| [`conky/`](conky/) | Desktop dashboard widgets — clock, weather, sports schedule, system stats | [README](conky/README.md) |
+| [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [README](sports-betting-advisor/README.md) |
+| [`docs/`](docs/) | Setup guides for Plex, ErsatzTV, Pi-hole, and deployment | [README](docs/README.md) |
 
 ---
 
-## Server Info
+## Configuration
 
-| Component | Details |
-|-----------|---------|
-| **Hostname** | hyperion |
-| **OS** | Linux Mint 22.2 |
-| **CPU** | 2x Intel Xeon E5-2620 v3 (24 threads @ 2.4GHz, VAAPI-capable) |
-| **Media drives** | 2x Seagate Enterprise 8TB (ST8000NM0055) ~5 years runtime |
-| **Backup drive** | Seagate Expansion 8TB (exFAT, external USB) |
-| **Media server** | Plex + ErsatzTV |
-| **Library** | ~235 movies (2.2TB), ~6300 TV episodes (4.4TB) |
-
----
-
-## Drive Health
-
-Both drives are Seagate Enterprise ST8000NM0055 with ~43,000 hours runtime (~5 years).
-Run extended SMART tests before any RAID or NAS migration:
+All server-specific settings (paths, drives, services, preferences) are stored in
+`config.env` at the repo root. This file is **git-ignored** and never pushed to GitHub.
 
 ```bash
-# Start extended tests (~13 hours each)
-sudo smartctl -t long /dev/sda
-sudo smartctl -t long /dev/sdb
-
-# Check results after completion
-sudo smartctl -a /dev/sda
-sudo smartctl -a /dev/sdb
+cp config.env.example config.env
 ```
 
-**Known status:**
-- Drive 1 (ZA1DF18Y): 1 historical UNC read error — monitor closely, plan to replace within 12 months
-- Drive 2 (ZA1JJZ51): Clean error log — healthier of the two
+See [`config.env.example`](config.env.example) for all available settings with descriptions.
+
+For server-specific notes (hardware, drive serials, health status), create a local
+`SERVER_INFO.md` — this is also git-ignored.
 
 ---
 

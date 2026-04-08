@@ -3,13 +3,23 @@
 # Writes formatted output to ~/.cache/celtics_next.txt
 # Checks today's scoreboard first (live/upcoming today), then the full schedule.
 
+# Source config.env from repo root for default settings
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [[ -f "$REPO_ROOT/config.env" ]]; then
+    # shellcheck source=../config.env
+    source "$REPO_ROOT/config.env"
+fi
+
 OUT="$HOME/.cache/celtics_next.txt"
 mkdir -p "$HOME/.cache"
 
-TEAM="BOS"
-SCOREBOARD_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
-SCHEDULE_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${TEAM}/schedule"
-TEAM_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${TEAM}"
+TEAM="${SPORTS_TEAM:-BOS}"
+TEAM_NAME="${SPORTS_TEAM_NAME:-Celtics}"
+LEAGUE="${SPORTS_LEAGUE:-nba}"
+SCOREBOARD_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/${LEAGUE}/scoreboard"
+SCHEDULE_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/${LEAGUE}/teams/${TEAM}/schedule"
+TEAM_URL="https://site.api.espn.com/apis/site/v2/sports/basketball/${LEAGUE}/teams/${TEAM}"
 
 # Fetch win-loss record
 RECORD=$(curl -fsS "$TEAM_URL" 2>/dev/null | jq -r '.team.record.items[0].summary // empty' 2>/dev/null)
@@ -74,18 +84,18 @@ LOCATION="$VENUE — $CITY_ONLY"
 # Build output based on game status
 if [ "$STATUS" = "STATUS_IN_PROGRESS" ]; then
     {
-        echo "LIVE: Celtics $MATCHUP"
+        echo "LIVE: $TEAM_NAME $MATCHUP"
         echo "$LOCATION"
     } > "$OUT"
 elif [ "$STATUS" = "STATUS_SCHEDULED" ]; then
     {
-        echo "Celtics $MATCHUP"
+        echo "$TEAM_NAME $MATCHUP"
         echo "$GAME_TIME"
         echo "$LOCATION"
     } > "$OUT"
 else
     {
-        echo "Celtics $MATCHUP"
+        echo "$TEAM_NAME $MATCHUP"
         echo "$GAME_TIME"
         echo "$LOCATION"
     } > "$OUT"
