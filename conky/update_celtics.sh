@@ -67,22 +67,26 @@ fi
 # Convert UTC to local time
 GAME_TIME=$(date -d "$UTC_DATE" '+%a %b %d  %I:%M %p' 2>/dev/null)
 
+# Truncate venue line to prevent conky window from growing too wide
+MAX_WIDTH=35
+LOCATION=$(echo "$VENUE — $CITY" | cut -c1-$MAX_WIDTH)
+
 # Build output based on game status
 if [ "$STATUS" = "STATUS_IN_PROGRESS" ]; then
     {
         echo "LIVE: Celtics $MATCHUP"
-        echo "$VENUE — $CITY"
+        echo "$LOCATION"
     } > "$OUT"
 elif [ "$STATUS" = "STATUS_SCHEDULED" ]; then
     {
         echo "Celtics $MATCHUP"
         echo "$GAME_TIME"
-        echo "$VENUE — $CITY"
+        echo "$LOCATION"
     } > "$OUT"
 else
     {
         echo "Celtics $MATCHUP"
         echo "$GAME_TIME"
-        echo "$VENUE — $CITY"
+        echo "$LOCATION"
     } > "$OUT"
 fi
