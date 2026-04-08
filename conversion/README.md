@@ -95,6 +95,71 @@ Batch converts video files (MKV, AVI, MP4, M4V, FLV, WMV) to MP4 (H.264/AAC).
 
 ---
 
+### `process_shared.sh`
+
+Processes video files dropped into the shared folder (`HYPERION_SHARE`) from a Windows machine.
+Converts each file to MP4 (H.264/AAC) and moves it to the correct `Movies` or `TV Shows`
+directory in the media library.
+
+**How it works:**
+
+The script creates two intake directories in the shared folder:
+```
+HYPERION_SHARE/
+├── Movies/          <- drop movie files here
+└── TV Shows/        <- drop TV episodes here
+```
+
+- **Movies:** Converted files are placed directly in `MEDIA_SOURCE/Movies/`.
+- **TV Shows (with subdirectories):** If you organize files into `Show Name/Season XX/` folders,
+  the structure is preserved in the media library.
+- **TV Shows (flat files):** If you drop episodes directly into `TV Shows/`, the script parses
+  the show name and season from the filename (e.g., `Show.Name.S01E01.mkv`) and matches against
+  existing shows in the library. If no match is found, a new show directory is created.
+
+After a successful conversion, the original file is removed from the share (unless `--keep` is used).
+
+**Usage:**
+```bash
+# Preview what would happen
+./process_shared.sh --dry-run
+
+# Normal run
+./process_shared.sh
+
+# Faster encode with GPU acceleration
+./process_shared.sh --hwaccel --preset=fast
+
+# Keep originals after conversion
+./process_shared.sh --keep
+
+# Lower quality for faster processing
+./process_shared.sh --crf=23
+```
+
+**Supported filename patterns for auto-parsing TV shows:**
+- `Show.Name.S01E01.Episode.Title.mkv` (SxxExx)
+- `Show Name - S01E01 - Episode Title.mkv`
+- `show.name.1x01.episode.mkv` (NxNN)
+
+**Configuration** (via `config.env`):
+```bash
+HYPERION_SHARE="/path/to/share"     # Shared folder with Windows
+MEDIA_SOURCE="/path/to/media"       # Plex/ErsatzTV media library
+```
+
+**Flags:**
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Preview actions without making changes |
+| `--preset=PRESET` | x264 preset (default: medium) |
+| `--hwaccel[=TYPE]` | GPU-accelerated encoding (auto, vaapi, nvenc, qsv) |
+| `--crf=N` | Quality 0-51 (default: 18) |
+| `--keep` | Do not delete originals after conversion |
+
+---
+
 ### `sync_converted.sh`
 
 Two-phase bidirectional sync between source and destination drives.
@@ -194,6 +259,13 @@ tmux new -s chunk1
 
 # 4. Audit any issues
 ./audit_conversion.sh
+```
+
+### Processing files from Windows
+```bash
+# Drop files into the shared folder from Windows, then:
+./process_shared.sh --dry-run        # Preview
+./process_shared.sh --hwaccel        # Convert and move to library
 ```
 
 ---

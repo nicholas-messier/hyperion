@@ -30,3 +30,13 @@ The README in the main directory needs to be updated to link and include the new
 
 All server-specific paths must go in `config.env` (git-ignored), not hardcoded in scripts.
 No IP addresses, drive serial numbers, or personal paths in files committed to git.
+
+## Screenshots
+
+The local display can be captured for visual troubleshooting (e.g., conky panels) even when working over SSH:
+
+```sh
+DISPLAY=:0 gnome-screenshot -f /tmp/screenshot.png
+```
+
+Then use the `read` tool on the resulting image to view it. This is useful for verifying conky layout, styling, or visual bugs.
