@@ -67,9 +67,9 @@ fi
 # Convert UTC to local time
 GAME_TIME=$(date -d "$UTC_DATE" '+%a %b %d  %I:%M %p' 2>/dev/null)
 
-# Truncate venue line to prevent conky window from growing too wide
-MAX_WIDTH=35
-LOCATION=$(echo "$VENUE — $CITY" | cut -c1-$MAX_WIDTH)
+# Show venue + city without state to keep the line short for conky
+CITY_ONLY=$(echo "$CITY" | sed 's/,.*//')
+LOCATION="$VENUE — $CITY_ONLY"
 
 # Build output based on game status
 if [ "$STATUS" = "STATUS_IN_PROGRESS" ]; then
