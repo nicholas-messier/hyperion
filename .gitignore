@@ -20,6 +20,9 @@ SERVER_INFO.md
 .DS_Store
 Thumbs.db
 
+# Local-only rules (not for GitHub)
+.windsurf/
+
 # Editors
 *.swp
 *.swo

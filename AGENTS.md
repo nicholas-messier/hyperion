@@ -31,23 +31,6 @@ The README in the main directory needs to be updated to link and include the new
 All server-specific paths must go in `config.env` (git-ignored), not hardcoded in scripts.
 No IP addresses, drive serial numbers, or personal paths in files committed to git.
 
-## Sudo Access
-
-This system uses a GPG-encrypted password store (`pass`) with a `SUDO_ASKPASS` helper for non-interactive sudo.
-
-To run sudo commands without a terminal password prompt:
-
-```sh
-export SUDO_ASKPASS="$HOME/.local/bin/sudo-askpass"
-sudo -A <command>
-```
-
-This is configured automatically in `.bashrc` for interactive shells. For non-interactive contexts (e.g., Devin tool calls), set `SUDO_ASKPASS` and use `sudo -A` explicitly.
-
-- Password store entry: `sudo` (retrieve with `pass sudo`)
-- Askpass helper: `~/.local/bin/sudo-askpass`
-- To update the stored password: `pass edit sudo`
-
 ## Screenshots
 
 The local display can be captured for visual troubleshooting (e.g., conky panels) even when working over SSH:
