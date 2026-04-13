@@ -2,7 +2,7 @@
 # conversion_status.sh — Reports which conversion pipeline scripts are active
 # Used by conky-system.conf to display status on the desktop widget
 #
-# Detects: convert_mkv_to_mp4.sh, sync_converted.sh, verify_conversion.sh
+# Detects: convert_mkv_to_mp4.sh, process_shared.sh, sync_converted.sh, verify_conversion.sh
 
 scripts=()
 
@@ -13,6 +13,10 @@ if pgrep -f "convert_mkv_to_mp4\.sh" >/dev/null 2>&1; then
     else
         scripts+=("convert")
     fi
+fi
+
+if pgrep -f "process_shared\.sh" >/dev/null 2>&1; then
+    scripts+=("shared")
 fi
 
 if pgrep -f "sync_converted\.sh" >/dev/null 2>&1; then
