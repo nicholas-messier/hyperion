@@ -3,10 +3,13 @@
 # Used by conky-system.conf to display status on the desktop widget
 #
 # Detects: convert_mkv_to_mp4.sh, process_shared.sh, sync_converted.sh, verify_conversion.sh
+#
+# Uses pgrep -af with grep -v to exclude false positives from tmux
+# session args that contain script names after the job has finished.
 
 scripts=()
 
-if pgrep -f "convert_mkv_to_mp4\.sh" >/dev/null 2>&1; then
+if pgrep -af "convert_mkv_to_mp4\.sh" 2>/dev/null | grep -qv "tmux"; then
     jobs=$(pgrep -c ffmpeg 2>/dev/null || echo 0)
     if [ "$jobs" -gt 0 ]; then
         scripts+=("convert ($jobs jobs)")
@@ -15,15 +18,15 @@ if pgrep -f "convert_mkv_to_mp4\.sh" >/dev/null 2>&1; then
     fi
 fi
 
-if pgrep -f "process_shared\.sh" >/dev/null 2>&1; then
+if pgrep -af "process_shared\.sh" 2>/dev/null | grep -qv "tmux"; then
     scripts+=("shared")
 fi
 
-if pgrep -f "sync_converted\.sh" >/dev/null 2>&1; then
+if pgrep -af "sync_converted\.sh" 2>/dev/null | grep -qv "tmux"; then
     scripts+=("sync")
 fi
 
-if pgrep -f "verify_conversion\.sh" >/dev/null 2>&1; then
+if pgrep -af "verify_conversion\.sh" 2>/dev/null | grep -qv "tmux"; then
     scripts+=("verify")
 fi
 
