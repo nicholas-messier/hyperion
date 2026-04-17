@@ -38,20 +38,31 @@ GAME=$(curl -fsS "$SCOREBOARD_URL" 2>/dev/null | jq -r --arg team "$TEAM" '
         homeAway: ([.competitions[0].competitors[] | select(.team.abbreviation == $team)][0].homeAway)
     }' 2>/dev/null)
 
-# If no game today or today's game is final, check the schedule for next upcoming
+# If no game today or today's game is final, check the schedule for next upcoming.
+# Try the default schedule first, then playoff (seasontype=3) and play-in (seasontype=5)
+# schedules as fallbacks. This handles gaps when the API's current season type
+# (e.g., play-in) has no events for the team.
 STATUS=$(echo "$GAME" | jq -r '.status // empty' 2>/dev/null)
 if [ -z "$GAME" ] || [ "$STATUS" = "STATUS_FINAL" ]; then
-    GAME=$(curl -fsS "$SCHEDULE_URL" 2>/dev/null | jq -r --arg team "$TEAM" '
-        [.events[] | select(.competitions[0].status.type.name == "STATUS_SCHEDULED")] | .[0] // empty |
-        {
-            date: .date,
-            status: .competitions[0].status.type.name,
-            detail: "Scheduled",
-            venue: .competitions[0].venue.fullName,
-            city: (.competitions[0].venue.address.city + ", " + .competitions[0].venue.address.state),
-            opponent: ([.competitions[0].competitors[] | select(.team.abbreviation != $team)][0].team.displayName),
-            homeAway: ([.competitions[0].competitors[] | select(.team.abbreviation == $team)][0].homeAway)
-        }' 2>/dev/null)
+    for STYPE in "" "3" "5"; do
+        if [ -n "$STYPE" ]; then
+            URL="${SCHEDULE_URL}?seasontype=${STYPE}"
+        else
+            URL="$SCHEDULE_URL"
+        fi
+        GAME=$(curl -fsS "$URL" 2>/dev/null | jq -r --arg team "$TEAM" '
+            [.events[] | select(.competitions[0].status.type.name == "STATUS_SCHEDULED")] | .[0] // empty |
+            {
+                date: .date,
+                status: .competitions[0].status.type.name,
+                detail: "Scheduled",
+                venue: .competitions[0].venue.fullName,
+                city: (.competitions[0].venue.address.city + ", " + .competitions[0].venue.address.state),
+                opponent: ([.competitions[0].competitors[] | select(.team.abbreviation != $team)][0].team.displayName),
+                homeAway: ([.competitions[0].competitors[] | select(.team.abbreviation == $team)][0].homeAway)
+            }' 2>/dev/null)
+        [ -n "$GAME" ] && [ "$GAME" != "null" ] && break
+    done
 fi
 
 if [ -z "$GAME" ] || [ "$GAME" = "null" ]; then
