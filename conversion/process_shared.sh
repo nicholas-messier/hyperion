@@ -47,9 +47,9 @@ SHARE="${HYPERION_SHARE:?Set HYPERION_SHARE in config.env}"
 MEDIA="${MEDIA_SOURCE:?Set MEDIA_SOURCE in config.env}"
 
 # ── Parse arguments ──────────────────────────────────────────
-PRESET="medium"
+PRESET="fast"
 HWACCEL=""
-CRF=18
+CRF=23
 DRY_RUN=false
 KEEP=false
 

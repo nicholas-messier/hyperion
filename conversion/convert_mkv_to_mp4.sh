@@ -45,13 +45,13 @@
 set -euo pipefail
 
 # ── Parse arguments ──────────────────────────────────────────
-PRESET="medium"
+PRESET="fast"
 PLAN_MODE=false
 CHUNK_HOURS=12
 CHUNK_NUM=0
 HWACCEL=""
 PARALLEL=1
-CRF=18
+CRF=23
 
 for arg in "$@"; do
     case $arg in

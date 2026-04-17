@@ -140,10 +140,16 @@ if $EXPORT; then
     fi
 
     # Check available space before syncing
+    # Account for space already used by existing target (rsync --delete-before frees it first)
     AVAIL_BYTES=$(df --output=avail -B1 "$MOUNT_POINT" | tail -1)
+    TARGET_BYTES=0
+    if [[ -d "$EXTERNAL_TARGET" ]]; then
+        TARGET_BYTES=$(du -sb "$EXTERNAL_TARGET" | cut -f1)
+    fi
+    EFFECTIVE_AVAIL=$(( AVAIL_BYTES + TARGET_BYTES ))
     SOURCE_BYTES=$(du -sb "$STAGING" | cut -f1)
-    if (( SOURCE_BYTES > AVAIL_BYTES )); then
-        log "ERROR" "Not enough space on external drive! Need $(( SOURCE_BYTES / 1073741824 ))GB, have $(( AVAIL_BYTES / 1073741824 ))GB"
+    if (( SOURCE_BYTES > EFFECTIVE_AVAIL )); then
+        log "ERROR" "Not enough space on external drive! Need $(( SOURCE_BYTES / 1073741824 ))GB, have $(( EFFECTIVE_AVAIL / 1073741824 ))GB effective ($(( AVAIL_BYTES / 1073741824 ))GB free + $(( TARGET_BYTES / 1073741824 ))GB reclaimable)"
         log_color "$RED" "[ERROR] Not enough space on external drive!"
         exit 1
     fi
