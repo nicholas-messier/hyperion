@@ -123,14 +123,17 @@ Create an iOS Shortcut named **"Send to Server"** with these steps:
 
 1. **Receive** `Images` input from **Share Sheet**
 2. **Get Contents of URL**:
-   - URL: `http://192.168.0.16:8420/upload`
+   - URL: `http://<INTAKE_PUBLIC_IP>:<INTAKE_PORT>/upload`
+     (use your public IP from `config.env`, e.g., `http://73.x.x.x:8420/upload`)
    - Method: **POST**
    - Headers:
-     - `Authorization` → `Bearer YOUR_TOKEN_HERE`
+     - `Authorization` → `Bearer <INTAKE_TOKEN>`
    - Request Body: **File**
    - File: **Shortcut Input**
 3. **Get Dictionary Value** — key: `bets_found`
 4. **Show Notification**: `Found [Dictionary Value] bets`
+
+Requires router port forwarding: external port 8420 → internal 192.168.0.16:8420 (TCP).
 
 Then from DraftKings: **Share bet slip → tap "Send to Server"** in the share sheet.
 
