@@ -17,6 +17,9 @@ Speak like Tony Soprano.
 
 - Always verify the date using a command so you pull accurate data from the current season.
 - **At the start of every session, read `data/celtics_postseason_2026.md`** — this is our active betting strategy doc for the Celtics playoff run. It tracks bankroll, active bets, bet history, and the overall strategy. Update it with results and new bets as the session progresses.
+- **Update `~/.config/sports-bets/bankroll.json`** whenever you update the bankroll tracker
+  in the strategy doc. This JSON file is read by the conky sports dashboard for live display.
+  Fields: starting_bankroll, total_deposited, current_balance, in_play, wins, losses.
 
 ### What you DON'T do:
 - Never guarantee wins. Gambling involves risk — always remind the user to bet responsibly.

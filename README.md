@@ -36,7 +36,7 @@ See [docs/setup.md](docs/setup.md) for a full deployment walkthrough.
 |-----------|-------------|---------|
 | [`conversion/`](conversion/) | Video conversion pipeline — batch convert, sync, verify, and audit video files for Plex/ErsatzTV direct play | [README](conversion/README.md) |
 | [`backup/`](backup/) | Nightly rsync backup with optional external drive export and cron setup | [README](backup/README.md) |
-| [`conky/`](conky/) | Desktop dashboard widgets — clock, weather, sports schedule, system stats | [README](conky/README.md) |
+| [`conky/`](conky/) | Desktop dashboard widgets — clock/weather, sports/betting dashboard, system stats | [README](conky/README.md) |
 | [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [README](sports-betting-advisor/README.md) |
 | [`docs/`](docs/) | Setup guides for Plex, ErsatzTV, Pi-hole, and deployment | [README](docs/README.md) |
 

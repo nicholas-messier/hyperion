@@ -1,7 +1,12 @@
 # Conky Desktop Dashboard
 
 Conky desktop widgets showing clock, world time zones, local weather,
-sports schedule, system stats, disk usage, and service status at a glance.
+sports/betting dashboard, system stats, disk usage, and service status at a glance.
+
+Three panels are displayed right-to-left from the screen edge:
+- **Clock** (gap_x=20, 320px) — clock, date, world time zones, weather
+- **Sports** (gap_x=360, 320px) — NBA Playoffs, active bets, bankroll status
+- **System** (gap_x=700, 320-420px) — CPU, memory, disk, services, conversion pipeline
 
 All personal settings (weather location, sports team, disk paths, etc.) are
 configured in `config.env` at the repo root and applied during install.
@@ -13,12 +18,14 @@ See [`config.env.example`](../config.env.example) for available settings.
 
 | File | Purpose |
 |------|---------|
-| `conky-clock.conf` | Main dashboard template (top-right) — clock, date, world time zones, weather, sports |
-| `conky-system.conf` | System stats template — CPU, memory, disk, services, conversion pipeline status |
+| `conky-clock.conf` | Clock dashboard template (right) — clock, date, world time zones, weather |
+| `conky-sports.conf` | Sports dashboard template (middle) — NBA Playoffs, active bets, bankroll status |
+| `conky-system.conf` | System stats template (left) — CPU, memory, disk, services, conversion pipeline status |
 | `conversion_status.sh` | Helper script used by conky-system to detect active conversion scripts (convert, sync, verify) |
 | `update_weather.sh` | Fetches current conditions from NWS API -> `~/.cache/weather.txt` |
 | `update_celtics.sh` | Fetches next game + record from ESPN API -> `~/.cache/celtics_*.txt` |
 | `update_sports.py` | Smart sports display — shows live bet tracking during games, schedule otherwise |
+| `update_sports_dashboard.py` | Full sports panel — playoffs, active bets with live progress, bankroll status |
 | `install.sh` | One-command setup: installs deps, generates configs from templates, sets up cron, starts conky |
 
 ---
@@ -43,7 +50,7 @@ The install script:
 5. Deploys configs to `~/.config/conky/`
 6. Adds cron jobs (weather every 20 min, sports every 30 min)
 7. Runs an initial data fetch so conky has data immediately
-8. Creates XDG autostart `.desktop` entries so both panels launch on login
+8. Creates XDG autostart `.desktop` entries so all three panels launch on login
 9. Optionally starts conky
 
 ---
@@ -71,7 +78,7 @@ The `.conf` files in this directory are templates. The `install.sh` script repla
 
 ## Autostart
 
-Both conky panels auto-start on login via XDG `.desktop` entries created by `install.sh`.
+All three conky panels auto-start on login via XDG `.desktop` entries created by `install.sh`.
 To disable autostart, delete the files in `~/.config/autostart/` or set
 `X-GNOME-Autostart-enabled=false` inside them.
 
@@ -81,6 +88,7 @@ To disable autostart, delete the files in `~/.config/autostart/` or set
 
 ```bash
 conky -c ~/.config/conky/conky-clock.conf -d
+conky -c ~/.config/conky/conky-sports.conf -d
 conky -c ~/.config/conky/conky-system.conf -d
 ```
 
@@ -95,10 +103,9 @@ conky -c ~/.config/conky/conky-system.conf -d
 
 ## Live Bet Tracking
 
-The sports section of the clock panel automatically switches between two modes:
+The sports panel automatically shows bet progress when games are live:
 
-**Schedule mode (default):** Shows the next Celtics game, time, and venue — the normal display
-when no games with active bets are in progress.
+**Static mode (default):** Lists all active bets with player, stat target, and wager amount.
 
 **Live tracking mode:** When an NBA game is in progress (or just finished) and you have active
 bets on players in that game, the display switches to show real-time bet progress:
@@ -145,6 +152,36 @@ Active bets are defined in `~/.config/sports-bets/active_bets.json`:
 
 The display refreshes every 60 seconds. When no bets are active or no matching games are
 live, it automatically falls back to showing the next Celtics game schedule.
+
+---
+
+## Bankroll Tracking
+
+The sports panel displays bankroll status from `~/.config/sports-bets/bankroll.json`:
+
+```json
+{
+    "starting_bankroll": 20.00,
+    "total_deposited": 40.00,
+    "current_balance": 36.33,
+    "in_play": 16.00,
+    "wins": 3,
+    "losses": 0
+}
+```
+
+**Fields:**
+- `starting_bankroll` — Initial deposit amount
+- `total_deposited` — Total money deposited across all deposits
+- `current_balance` — Current unwagered balance on DraftKings
+- `in_play` — Total amount currently wagered on active bets
+- `wins` / `losses` — Win-loss record
+
+**Display:** The panel shows balance (green if above starting, red if below), net P/L
+(calculated as `current_balance + in_play - total_deposited`), and win-loss record.
+
+This file is updated by the betting advisor (Devin "Juan Consuelo" personality) alongside
+the markdown strategy doc during betting sessions.
 
 ---
 

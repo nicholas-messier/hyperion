@@ -167,7 +167,7 @@ apply_template() {
 }
 
 # Deploy clock and system configs from templates
-for conf in conky-clock.conf conky-system.conf; do
+for conf in conky-clock.conf conky-system.conf conky-sports.conf; do
     if [ -f "$SCRIPT_DIR/$conf" ]; then
         apply_template "$SCRIPT_DIR/$conf" "$CONKY_DIR/$conf"
         ok "Generated and installed $conf"
@@ -191,6 +191,7 @@ info "Setting permissions on helper scripts..."
 chmod +x "$SCRIPT_DIR/update_weather.sh"
 chmod +x "$SCRIPT_DIR/update_celtics.sh"
 chmod +x "$SCRIPT_DIR/update_sports.py"
+chmod +x "$SCRIPT_DIR/update_sports_dashboard.py"
 ok "Scripts are executable"
 
 # ---------- 4. Cron jobs ----------
@@ -254,6 +255,19 @@ X-GNOME-Autostart-Delay=3
 EOF
 ok "Autostart entry: System Conky"
 
+cat > "$AUTOSTART_DIR/Sports Conky.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Exec=conky -d -c $CONKY_DIR/conky-sports.conf
+X-GNOME-Autostart-enabled=true
+NoDisplay=false
+Hidden=false
+Name[en_US]=Sports Conky
+Comment[en_US]=Conky sports dashboard (middle panel)
+X-GNOME-Autostart-Delay=3
+EOF
+ok "Autostart entry: Sports Conky"
+
 # ---------- 6. Initial data fetch ----------
 info "Running initial data fetch..."
 mkdir -p "$HOME/.cache"
@@ -273,6 +287,23 @@ BETSEOF
     info "Add active bets to enable live tracking in conky"
 else
     ok "Bets config already exists at $BETS_FILE"
+fi
+
+BANKROLL_FILE="$BETS_DIR/bankroll.json"
+if [ ! -f "$BANKROLL_FILE" ]; then
+    cat > "$BANKROLL_FILE" <<'BANKEOF'
+{
+    "starting_bankroll": 0,
+    "total_deposited": 0,
+    "current_balance": 0,
+    "in_play": 0,
+    "wins": 0,
+    "losses": 0
+}
+BANKEOF
+    ok "Created empty bankroll config at $BANKROLL_FILE"
+else
+    ok "Bankroll config already exists at $BANKROLL_FILE"
 fi
 
 if "$SCRIPT_DIR/update_weather.sh" 2>/dev/null; then
@@ -296,26 +327,32 @@ if [[ "$ans" =~ ^[Yy] ]]; then
     killall conky 2>/dev/null || true
     sleep 1
     conky -c "$CONKY_DIR/conky-clock.conf" -d
+    conky -c "$CONKY_DIR/conky-sports.conf" -d
     conky -c "$CONKY_DIR/conky-system.conf" -d
-    ok "Conky started (conky-clock.conf + conky-system.conf)"
+    ok "Conky started (conky-clock.conf + conky-sports.conf + conky-system.conf)"
 else
     info "Skipped — start manually with:"
     echo "  conky -c $CONKY_DIR/conky-clock.conf -d"
+    echo "  conky -c $CONKY_DIR/conky-sports.conf -d"
     echo "  conky -c $CONKY_DIR/conky-system.conf -d"
 fi
 
 echo ""
-ok "Conky setup complete — both panels will auto-start on login!"
+ok "Conky setup complete — all three panels will auto-start on login!"
 echo ""
 echo "Files:"
 echo "  Configs:    $CONKY_DIR/conky-clock.conf"
+echo "              $CONKY_DIR/conky-sports.conf"
 echo "              $CONKY_DIR/conky-system.conf"
 echo "  Autostart:  $AUTOSTART_DIR/World Clock Conky.desktop"
+echo "              $AUTOSTART_DIR/Sports Conky.desktop"
 echo "              $AUTOSTART_DIR/System Conky.desktop"
 echo "  Scripts:    $SCRIPT_DIR/update_weather.sh"
 echo "              $SCRIPT_DIR/update_celtics.sh"
 echo "              $SCRIPT_DIR/update_sports.py"
+echo "              $SCRIPT_DIR/update_sports_dashboard.py"
 echo "  Bets:       $BETS_FILE"
+echo "  Bankroll:   $BANKROLL_FILE"
 echo "  Cache:      ~/.cache/weather.txt"
 echo "              ~/.cache/celtics_record.txt"
 echo "              ~/.cache/celtics_next.txt"
