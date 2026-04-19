@@ -6,8 +6,8 @@
 """
 update_sports.py — Smart sports display for conky
 
-Shows live bet tracking when games with active bets are in progress,
-otherwise shows the next Celtics game schedule.
+Shows NBA Playoffs overview with series standings and upcoming games.
+When active bets are in progress, shows live bet tracking overlay.
 
 Called from conky's execpi every 60 seconds:
     ${execpi 60 python3 /path/to/update_sports.py}
@@ -28,12 +28,15 @@ Example active_bets.json:
 
 import json
 import sys
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 try:
     import requests
 except ImportError:
-    # requests not installed — always fall back to cached schedule
+    # requests not installed — always fall back to minimal display
     requests = None
 
 # ESPN API endpoints
@@ -43,8 +46,10 @@ SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summ
 # Config paths
 BETS_FILE = Path.home() / ".config" / "sports-bets" / "active_bets.json"
 CACHE_DIR = Path.home() / ".cache"
-RECORD_CACHE = CACHE_DIR / "celtics_record.txt"
-NEXT_CACHE = CACHE_DIR / "celtics_next.txt"
+PLAYOFF_CACHE = CACHE_DIR / "nba_playoffs.json"
+
+# Cache TTL for playoff series data (5 minutes)
+PLAYOFF_CACHE_TTL = 300
 
 # Read config.env from repo root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -58,6 +63,18 @@ STAT_LABELS = [
     "MIN", "PTS", "FG", "3PT", "FT", "REB", "AST",
     "TO", "STL", "BLK", "OREB", "DREB", "PF", "+/-",
 ]
+
+LOCAL_TZ = ZoneInfo("America/New_York")
+
+# Common abbreviation aliases (DraftKings/standard -> ESPN)
+TEAM_ALIASES = {
+    "NYK": "NY", "SAS": "SA", "GSW": "GS", "NOP": "NO", "UTA": "UTAH",
+}
+
+
+def espn_abbr(team):
+    """Normalize team abbreviation to ESPN format."""
+    return TEAM_ALIASES.get(team, team)
 
 
 # ── Helpers ──────────────────────────────────────────────────
@@ -74,25 +91,237 @@ def read_config():
     return config
 
 
-def cached_record():
-    """Read the cached team record string."""
-    try:
-        return RECORD_CACHE.read_text().strip()
-    except FileNotFoundError:
-        return "?"
+def format_game_time(date_str):
+    """Format a UTC ISO date to compact local time string."""
+    dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    local_dt = dt.astimezone(LOCAL_TZ)
+    now = datetime.now(LOCAL_TZ)
+
+    t = local_dt.strftime("%-I:%M%p").lower()
+    # Clean up :00 for even hours (7:00pm -> 7pm)
+    if t.endswith(":00am") or t.endswith(":00pm"):
+        t = t.replace(":00", "")
+
+    if local_dt.date() == now.date():
+        return f"Today {t}"
+
+    day_diff = (local_dt.date() - now.date()).days
+    if 0 < day_diff <= 6:
+        return f"{local_dt.strftime('%a')} {t}"
+
+    return f"{local_dt.strftime('%-m/%-d')} {t}"
 
 
-def schedule_output():
-    """Print the cached schedule display (fallback when no live bets)."""
+# ── Playoff data ─────────────────────────────────────────────
+
+def fetch_playoff_series():
+    """Fetch all NBA playoff series data from ESPN, with caching."""
+    if PLAYOFF_CACHE.exists():
+        try:
+            cache = json.loads(PLAYOFF_CACHE.read_text())
+            if time.time() - cache.get("timestamp", 0) < PLAYOFF_CACHE_TTL:
+                return cache["series"]
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    # Rolling window: 14 days back, 30 days forward
+    now = datetime.now(LOCAL_TZ)
+    start = (now - timedelta(days=14)).strftime("%Y%m%d")
+    end = (now + timedelta(days=30)).strftime("%Y%m%d")
+
+    resp = requests.get(SCOREBOARD_URL, params={
+        "seasontype": "3",
+        "dates": f"{start}-{end}",
+    }, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    all_events = data.get("events", [])
+
+    # Determine current round from events with active/scheduled games
+    round_names = ["1st Round", "2nd Round", "Conf. Finals", "Finals"]
+    active_rounds = set()
+    for event in all_events:
+        comp = event["competitions"][0]
+        status = comp["status"]["type"]["name"]
+        notes = comp.get("notes", [])
+        headline = notes[0].get("headline", "") if notes else ""
+        if status in {"STATUS_IN_PROGRESS", "STATUS_SCHEDULED"}:
+            for rn in round_names:
+                if rn in headline:
+                    active_rounds.add(rn)
+                    break
+
+    # Pick the earliest active round
+    current_round = None
+    for rn in round_names:
+        if rn in active_rounds:
+            current_round = rn
+            break
+
+    # Filter events to current round only
+    events = []
+    for event in all_events:
+        notes = event["competitions"][0].get("notes", [])
+        headline = notes[0].get("headline", "") if notes else ""
+        if current_round and current_round in headline:
+            events.append(event)
+
+    if not events:
+        events = all_events
+
+    # Group events by series (unique pair of teams)
+    series_map = {}
+    for event in events:
+        comp = event["competitions"][0]
+        competitors = comp.get("competitors", [])
+        if len(competitors) != 2:
+            continue
+
+        abbrs = [c["team"]["abbreviation"] for c in competitors]
+        key = tuple(sorted(abbrs))
+
+        if key not in series_map:
+            # Higher seed = home team in Game 1 (first event we see)
+            notes = comp.get("notes", [])
+            headline = notes[0].get("headline", "") if notes else ""
+            home = next((c["team"]["abbreviation"] for c in competitors
+                         if c.get("homeAway") == "home"), abbrs[0])
+            away = next((c["team"]["abbreviation"] for c in competitors
+                         if c.get("homeAway") == "away"), abbrs[1])
+            series_map[key] = {
+                "higher_seed": home,
+                "lower_seed": away,
+                "headline": headline,
+                "games": [],
+            }
+
+        status = comp["status"]["type"]["name"]
+        detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
+        scores = {c["team"]["abbreviation"]: c.get("score", "0")
+                  for c in competitors}
+
+        series_map[key]["games"].append({
+            "date": event["date"],
+            "status": status,
+            "detail": detail,
+            "scores": scores,
+        })
+
+    # Process into series list with records and next games
+    result = []
+    for key, info in series_map.items():
+        hs, ls = info["higher_seed"], info["lower_seed"]
+        hs_wins = ls_wins = 0
+        next_game = live_game = None
+
+        for g in sorted(info["games"], key=lambda x: x["date"]):
+            if g["status"] == "STATUS_FINAL":
+                try:
+                    s_hs = int(g["scores"].get(hs, 0))
+                    s_ls = int(g["scores"].get(ls, 0))
+                except (ValueError, TypeError):
+                    continue
+                if s_hs > s_ls:
+                    hs_wins += 1
+                else:
+                    ls_wins += 1
+            elif g["status"] == "STATUS_IN_PROGRESS" and live_game is None:
+                live_game = g
+            elif g["status"] == "STATUS_SCHEDULED" and next_game is None:
+                next_game = g
+
+        result.append({
+            "higher_seed": hs, "lower_seed": ls,
+            "hs_wins": hs_wins, "ls_wins": ls_wins,
+            "next_game": next_game, "live_game": live_game,
+            "headline": info["headline"],
+        })
+
+    # Sort: East series first, then West (by headline text)
+    east = sorted([s for s in result if "East" in s["headline"]],
+                  key=lambda s: s["headline"])
+    west = sorted([s for s in result if "West" in s["headline"]],
+                  key=lambda s: s["headline"])
+    other = [s for s in result if "East" not in s["headline"]
+             and "West" not in s["headline"]]
+    result = east + west + other
+
+    PLAYOFF_CACHE.write_text(json.dumps({"timestamp": time.time(), "series": result}))
+    return result
+
+
+def get_playoff_record(series_list, team_abbr):
+    """Get a team's playoff win-loss from the series data."""
+    for s in series_list:
+        if team_abbr == s["higher_seed"]:
+            return f"{s['hs_wins']}-{s['ls_wins']}"
+        if team_abbr == s["lower_seed"]:
+            return f"{s['ls_wins']}-{s['hs_wins']}"
+    return "?"
+
+
+# ── Conky output: playoff schedule ───────────────────────────
+
+def print_playoff_header(series_list):
+    """Print the NBA Playoffs header with team record."""
     config = read_config()
+    team_abbr = config.get("SPORTS_TEAM", "BOS")
     team_name = config.get("SPORTS_TEAM_NAME", "Celtics")
-    record = cached_record()
+    record = get_playoff_record(series_list, team_abbr) if series_list else "?"
 
+    print(f"${{color #00ff00}}NBA Playoffs${{color}}")
     print(f"${{color #00ff00}}{team_name}: ({record})${{color}}")
+
+
+def playoff_output(series_list=None):
+    """Print NBA Playoffs schedule for conky."""
+    config = read_config()
+    team_abbr = config.get("SPORTS_TEAM", "BOS")
+
+    # Load active bet teams for highlighting
+    bet_teams = set()
     try:
-        print(NEXT_CACHE.read_text().strip())
-    except FileNotFoundError:
-        print("No upcoming games")
+        bets, _ = load_bets()
+        bet_teams = {espn_abbr(b["team"]) for b in bets if "team" in b}
+    except Exception:
+        pass
+
+    if series_list is None:
+        try:
+            series_list = fetch_playoff_series()
+        except Exception:
+            series_list = None
+
+    if not series_list:
+        print(f"${{color #00ff00}}NBA Playoffs${{color}}")
+        print("Schedule unavailable")
+        return
+
+    print_playoff_header(series_list)
+
+    for s in series_list:
+        hs, ls = s["higher_seed"], s["lower_seed"]
+        rec = f"{s['hs_wins']}-{s['ls_wins']}"
+        matchup = f"{hs:<3} {rec} {ls:<3}"
+
+        if s["live_game"]:
+            detail = s["live_game"]["detail"]
+            sc = s["live_game"]["scores"]
+            s_hs, s_ls = sc.get(hs, "?"), sc.get(ls, "?")
+            print(f"${{color #ff6600}}{matchup}"
+                  f"  {s_hs}-{s_ls} {detail}${{color}}")
+        elif s["next_game"]:
+            when = format_game_time(s["next_game"]["date"])
+            if team_abbr in (hs, ls):
+                print(f"${{color #add8e6}}{matchup}"
+                      f"  {when}${{color}}")
+            elif hs in bet_teams or ls in bet_teams:
+                print(f"${{color #ffff00}}{matchup}"
+                      f"  {when}${{color}}")
+            else:
+                print(f"{matchup}  {when}")
+        else:
+            print(f"${{color #888888}}{matchup}  TBD${{color}}")
 
 
 # ── Data loading ─────────────────────────────────────────────
@@ -196,16 +425,11 @@ def eval_bet(all_stats, player, stat, target):
     return cur, ("HIT" if cur >= target else "LIVE")
 
 
-# ── Conky output formatting ─────────────────────────────────
+# ── Conky output: live bet tracking ─────────────────────────
 
-def conky_live(games, game_stats, bets, parlays):
+def conky_live(games, game_stats, bets, parlays, series_list=None):
     """Print conky-formatted live bet tracking output."""
-    config = read_config()
-    team_name = config.get("SPORTS_TEAM_NAME", "Celtics")
-    record = cached_record()
-
-    # Header — always show the home team name and record
-    print(f"${{color #00ff00}}{team_name}: ({record})${{color}}")
+    print_playoff_header(series_list)
 
     for game in games:
         teams = list(game["scores"].keys())
@@ -219,7 +443,7 @@ def conky_live(games, game_stats, bets, parlays):
         # Evaluate bets for this game
         stats = game_stats.get(game["event_id"], {})
         for bet in bets:
-            if bet.get("team") not in game["teams"]:
+            if espn_abbr(bet.get("team", "")) not in game["teams"]:
                 continue
 
             player = bet["player"]
@@ -261,34 +485,40 @@ def conky_live(games, game_stats, bets, parlays):
 # ── Main ─────────────────────────────────────────────────────
 
 def main():
-    # If requests isn't available, always show schedule
+    # If requests isn't available, show what we can
     if requests is None:
-        schedule_output()
+        playoff_output()
         return
 
-    # Load bets — if none, show schedule
+    # Fetch playoff series data (cached, used by both display modes)
+    try:
+        series_list = fetch_playoff_series()
+    except Exception:
+        series_list = None
+
+    # Load bets — if none, show playoff schedule
     try:
         bets, parlays = load_bets()
     except Exception:
-        schedule_output()
+        playoff_output(series_list)
         return
 
     if not bets:
-        schedule_output()
+        playoff_output(series_list)
         return
 
     # Check scoreboard for live games with our bet teams
     try:
         scoreboard = get_scoreboard()
     except Exception:
-        schedule_output()
+        playoff_output(series_list)
         return
 
-    bet_teams = {b["team"] for b in bets if "team" in b}
+    bet_teams = {espn_abbr(b["team"]) for b in bets if "team" in b}
     games = find_bet_games(scoreboard, bet_teams)
 
     if not games:
-        schedule_output()
+        playoff_output(series_list)
         return
 
     # Fetch box scores for each matching game
@@ -299,7 +529,7 @@ def main():
         except Exception:
             pass
 
-    conky_live(games, game_stats, bets, parlays)
+    conky_live(games, game_stats, bets, parlays, series_list)
 
 
 if __name__ == "__main__":
@@ -307,4 +537,4 @@ if __name__ == "__main__":
         main()
     except Exception:
         # Absolute last resort — never show an error in conky
-        schedule_output()
+        playoff_output()
