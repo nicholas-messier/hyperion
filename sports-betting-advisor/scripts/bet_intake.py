@@ -125,12 +125,20 @@ def preprocess_image(image_path):
     """Preprocess image for better OCR results.
 
     DraftKings bet slips may have dark backgrounds or colored text.
-    We convert to high-contrast black-on-white for tesseract.
+    We scale up 2x, convert to high-contrast black-on-white for tesseract.
     """
     if Image is None:
         return image_path
 
     img = Image.open(image_path)
+
+    # Scale up for better OCR (tesseract prefers larger images)
+    if img.width < 2000:
+        scale = max(2, 2000 // img.width)
+        img = img.resize(
+            (img.width * scale, img.height * scale), Image.LANCZOS
+        )
+
     img = img.convert("L")  # grayscale
 
     # If mostly dark (DK dark mode), invert so text is dark on light
@@ -138,8 +146,8 @@ def preprocess_image(image_path):
     if avg_pixel < 128:
         img = ImageOps.invert(img)
 
-    # High-contrast threshold
-    img = img.point(lambda x: 0 if x < 140 else 255)
+    # High-contrast threshold (200 works well for DK share cards)
+    img = img.point(lambda x: 0 if x < 200 else 255)
 
     out = str(Path(image_path).with_suffix(".processed.png"))
     img.save(out)
@@ -223,122 +231,201 @@ def lookup_player_team(player_name):
     return ""
 
 
+def _clean_ocr_line(line):
+    """Strip common OCR noise characters from a line."""
+    line = re.sub(r'^[\s|:@=©*«»\-.,;!?\'"{}()\[\]<>]+', "", line)
+    line = re.sub(r'[\s|:@=©*«»\-.,;!?\'"{}()\[\]<>]+$', "", line)
+    line = re.sub(r"\s{2,}", " ", line)
+    return line.strip()
+
+
+def _find_player_stat(line):
+    """Try to extract (player_name, stat_code) from a line like 'Jaylen Brown Points'.
+
+    Searches for a known stat keyword at the end of the line, then extracts
+    capitalized words before it as the player name. Handles OCR noise
+    before the player name (e.g., headshot artifacts).
+    """
+    lower = line.lower().strip()
+    # Sort by length descending so "total rebounds" matches before "rebounds"
+    for stat_key in sorted(STAT_MAP, key=len, reverse=True):
+        if len(stat_key) < 3:
+            continue
+        if lower.endswith(stat_key):
+            prefix = line[: len(line) - len(stat_key)].strip()
+            # Extract 2-4 consecutive capitalized words
+            m = re.search(
+                r"([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+){1,3})\s*$",
+                prefix,
+            )
+            if m:
+                return m.group(1).strip(), STAT_MAP[stat_key]
+    return None, None
+
+
 def parse_betslip(text):
     """Parse DraftKings bet slip OCR text into structured bets.
 
-    Handles formats like:
-        Jaylen Brown Over 24.5 Points
-        Jayson Tatum Over 9.5 Rebounds
+    Handles DraftKings share card format (most common from iPhone shares):
+        25+
+        Jaylen Brown Points
 
-    Or multi-line:
+    Traditional Over/Under format:
+        Jaylen Brown Over 24.5 Points
+
+    And multi-line Over/Under:
         Jaylen Brown
         Over 24.5 Points
 
     Returns (bets_list, parlays_list).
     """
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    raw_lines = [l.strip() for l in text.splitlines() if l.strip()]
+    cleaned = [_clean_ocr_line(l) for l in raw_lines]
     found_teams = find_teams_in_text(text)
 
     bets = []
     is_parlay = False
     wager = None
-    current_player = None
 
-    # Scan for wager amount
-    for line in lines:
-        m = re.search(r"\$(\d+\.?\d*)", line)
-        if m and re.search(r"wager|stake|bet|risk|total", line, re.I):
+    # ── Scan for wager amount ────────────────────────────────
+    for line in cleaned:
+        m = re.search(r"[Ww]ager[:\s]*\$(\d+\.?\d*)", line)
+        if m:
             wager = float(m.group(1))
+            break
+    if wager is None:
+        for line in cleaned:
+            m = re.search(r"\$(\d+\.?\d*)", line)
+            if m and re.search(r"wager|stake|bet|risk|total", line, re.I):
+                wager = float(m.group(1))
+                break
 
-    # Check for parlay indicator (lenient — OCR may garble "Parlay")
-    if re.search(r"\d+[- ]?leg\s*par?l?a?y?", text, re.I):
+    # ── Check for parlay indicator ───────────────────────────
+    if re.search(r"\d+\s*[-_ ]?\s*(?:Pick|Leg)\s+Par(?:lay|l?a?y?)", text, re.I):
+        is_parlay = True
+    elif re.search(r"\d+[- ]?leg\s*par?l?a?y?", text, re.I):
+        is_parlay = True
+    elif re.search(r"[Pp]ar(?:lay|l?a?y?)\s*\+\d+", text, re.I):
         is_parlay = True
 
-    # Over/Under stat pattern (captures target number and stat name)
-    ou_pattern = re.compile(
-        r"(?:Over|Under|O|U)\s*(\d+\.?\d*)\s+([A-Za-z][A-Za-z+ ]*)",
-        re.I,
-    )
+    # ── Strategy 1: DK share card format (N+ / Player Stat) ─
+    # Collect targets (N+) and player+stat lines, pair them in order.
+    targets = []        # (target_num, line_index)
+    player_stats = []   # (player, stat_code, line_index)
 
-    for line in lines:
-        # Skip noise lines
-        if re.match(
-            r"^(My Bets?|Active|Settled|Pending|Bet Slip|DraftKings|Share|Same Game|"
-            r"Odds|Payout|To Win|Potential|Leg |IF |Boost|Promo)",
-            line, re.I,
-        ):
+    for i, line in enumerate(cleaned):
+        if not line:
             continue
 
-        # Combined: "Player Name Over X.X Stat"
-        combined = re.match(
-            r"([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+)+)\s+"
-            r"(?:Over|Under|O|U)\s*(\d+\.?\d*)\s+"
-            r"([A-Za-z][A-Za-z+ ]*)",
-            line,
+        # Target: "25+" or "10+" — a number followed by + (with optional noise)
+        t_match = re.search(r"(?:^|[=\s])(\d+)\+", line)
+        if t_match and len(line) < 30:
+            targets.append((int(t_match.group(1)), i))
+
+        # Player Name Stat: "Jaylen Brown Points"
+        player, stat = _find_player_stat(line)
+        if player and stat:
+            player_stats.append((player, stat, i))
+
+    # Pair targets with player+stat by proximity (target before its player)
+    if targets and player_stats:
+        used = set()
+        for player, stat, ps_idx in player_stats:
+            best_t = None
+            best_dist = float("inf")
+            for ti, (tval, t_idx) in enumerate(targets):
+                if ti in used:
+                    continue
+                dist = ps_idx - t_idx
+                if 0 < dist < best_dist:
+                    best_t = ti
+                    best_dist = dist
+            target = targets[best_t][0] if best_t is not None else 0
+            if best_t is not None:
+                used.add(best_t)
+            team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
+            bets.append({
+                "player": player, "team": team,
+                "stat": stat, "target": target, "wager": 0,
+            })
+
+    # ── Strategy 2: Traditional Over/Under format (fallback) ─
+    if not bets:
+        ou_pattern = re.compile(
+            r"(?:Over|Under|O|U)\s*(\d+\.?\d*)\s+([A-Za-z][A-Za-z+ ]*)",
+            re.I,
         )
-        if combined:
-            player = combined.group(1).strip()
-            target_raw = float(combined.group(2))
-            stat_text = combined.group(3).strip().lower().rstrip("s ")
-            # Re-add trailing 's' for lookup since we map plural forms
-            stat = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
-            if stat:
-                target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
-                team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
-                bets.append({
-                    "player": player,
-                    "team": team,
-                    "stat": stat,
-                    "target": target,
-                    "wager": 0,
-                })
-                current_player = None
+        current_player = None
+        for line in cleaned:
+            if not line:
+                continue
+            if re.match(
+                r"^(My Bets?|Active|Settled|Pending|Bet Slip|DraftKings|Share|"
+                r"Same Game|Odds|Payout|To Win|Potential|Leg |IF |Boost|Promo)",
+                line, re.I,
+            ):
                 continue
 
-        # Standalone Over/Under line (player was on a previous line)
-        ou_match = ou_pattern.match(line)
-        if ou_match and current_player:
-            target_raw = float(ou_match.group(1))
-            stat_text = ou_match.group(2).strip().lower().rstrip("s ")
-            stat = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
-            if stat:
-                target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
-                team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
-                bets.append({
-                    "player": current_player,
-                    "team": team,
-                    "stat": stat,
-                    "target": target,
-                    "wager": 0,
-                })
-                current_player = None
-                continue
+            # Combined: "Player Name Over X.X Stat"
+            combined = re.match(
+                r"([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+)+)\s+"
+                r"(?:Over|Under|O|U)\s*(\d+\.?\d*)\s+"
+                r"([A-Za-z][A-Za-z+ ]*)",
+                line,
+            )
+            if combined:
+                pname = combined.group(1).strip()
+                target_raw = float(combined.group(2))
+                stat_text = combined.group(3).strip().lower().rstrip("s ")
+                sval = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
+                if sval:
+                    target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
+                    team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
+                    bets.append({
+                        "player": pname, "team": team,
+                        "stat": sval, "target": target, "wager": 0,
+                    })
+                    current_player = None
+                    continue
 
-        # Player name: 2-4 capitalized words, not a team name or label
-        name_match = re.match(
-            r"^([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+){1,3})$", line
-        )
-        if name_match:
-            candidate = name_match.group(1)
-            if candidate.lower() not in NBA_TEAMS and len(candidate) > 4:
-                current_player = candidate
+            # Standalone Over/Under line
+            ou_match = ou_pattern.match(line)
+            if ou_match and current_player:
+                target_raw = float(ou_match.group(1))
+                stat_text = ou_match.group(2).strip().lower().rstrip("s ")
+                sval = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
+                if sval:
+                    target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
+                    team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
+                    bets.append({
+                        "player": current_player, "team": team,
+                        "stat": sval, "target": target, "wager": 0,
+                    })
+                    current_player = None
+                    continue
 
-    # Distribute wager
+            # Player name line
+            name_match = re.match(
+                r"^([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+){1,3})$", line
+            )
+            if name_match:
+                candidate = name_match.group(1)
+                if candidate.lower() not in NBA_TEAMS and len(candidate) > 4:
+                    current_player = candidate
+
+    # ── Distribute wager ─────────────────────────────────────
     if wager and bets and not is_parlay:
         per_bet = round(wager / len(bets), 2)
         for b in bets:
             b["wager"] = per_bet
-    elif wager and bets and is_parlay:
-        # Parlay wager goes on the parlay, not individual legs
-        pass
 
-    # Build parlays
+    # ── Build parlays ────────────────────────────────────────
     parlays = []
     if is_parlay and len(bets) > 1:
         legs = [f"{b['player']}:{b['stat']}:{b['target']}" for b in bets]
         parlays.append({"name": "", "legs": legs, "wager": wager or 0})
 
-    # Fill in missing teams via ESPN player search
+    # ── Fill in missing teams via ESPN player search ─────────
     for bet in bets:
         if not bet.get("team"):
             bet["team"] = lookup_player_team(bet["player"])
