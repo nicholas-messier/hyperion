@@ -10,6 +10,8 @@ A collection of Python scripts and an AGENTS.md personality file that turns Devi
 | `scripts/nba_stats.py` | Fetches NBA player stats (per-game + averages) via the free nba_api |
 | `scripts/nfl_stats.py` | Fetches NFL player game logs from ESPN's free API |
 | `scripts/odds_checker.py` | Pulls current DraftKings odds for NBA/NFL via The Odds API |
+| `scripts/live_tracker.py` | Real-time bet tracker using ESPN scoreboard API — tracks player props during live games |
+| `data/celtics_postseason_2026.md` | Active betting strategy, bankroll tracker, and bet history for the 2026 Celtics playoff run |
 
 ## Quick Start
 
@@ -56,6 +58,15 @@ python3 scripts/odds_checker.py --sport nba
 - Player props support (may require paid API tier)
 - Shows API usage to track free tier limits
 - Raw JSON output option for programmatic use
+
+### Live Bet Tracker (`live_tracker.py`)
+- Tracks active player prop bets against real-time stats during live games
+- Uses the free ESPN scoreboard and summary APIs (no API key)
+- Auto-detects Celtics game on today's scoreboard
+- Progress bars show how close each bet is to hitting
+- Parlay tracking across multiple legs
+- Auto-refreshes every 30 seconds (configurable)
+- Default bets loaded from the postseason strategy; custom bets via CLI
 
 ## How It Works with Devin
 

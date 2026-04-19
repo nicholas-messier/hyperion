@@ -41,8 +41,24 @@ MARKET_TYPES = {
 BOOKMAKER = "draftkings"
 
 
+def _load_dotenv() -> None:
+    """Load .env file from the project root if it exists."""
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.isfile(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip().strip("'\"")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+
+
 def get_api_key(provided_key: Optional[str] = None) -> str:
-    """Get the API key from argument, env var, or prompt."""
+    """Get the API key from argument, env var, .env file, or prompt."""
+    _load_dotenv()
     key = provided_key or os.environ.get("ODDS_API_KEY")
     if not key:
         print("ERROR: No API key provided.")

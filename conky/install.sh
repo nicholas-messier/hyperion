@@ -51,7 +51,7 @@ err()   { echo -e "${RED}[ERROR]${NC} $*"; }
 # ---------- 1. Dependencies ----------
 info "Checking dependencies..."
 
-DEPS=(conky-all jq curl lm-sensors)
+DEPS=(conky-all jq curl lm-sensors python3-requests)
 MISSING=()
 
 for pkg in "${DEPS[@]}"; do
@@ -190,6 +190,7 @@ fi
 info "Setting permissions on helper scripts..."
 chmod +x "$SCRIPT_DIR/update_weather.sh"
 chmod +x "$SCRIPT_DIR/update_celtics.sh"
+chmod +x "$SCRIPT_DIR/update_sports.py"
 ok "Scripts are executable"
 
 # ---------- 4. Cron jobs ----------
@@ -257,6 +258,23 @@ ok "Autostart entry: System Conky"
 info "Running initial data fetch..."
 mkdir -p "$HOME/.cache"
 
+# Create sports bets config directory and sample file if needed
+BETS_DIR="$HOME/.config/sports-bets"
+BETS_FILE="$BETS_DIR/active_bets.json"
+mkdir -p "$BETS_DIR"
+if [ ! -f "$BETS_FILE" ]; then
+    cat > "$BETS_FILE" <<'BETSEOF'
+{
+    "bets": [],
+    "parlays": []
+}
+BETSEOF
+    ok "Created empty bets config at $BETS_FILE"
+    info "Add active bets to enable live tracking in conky"
+else
+    ok "Bets config already exists at $BETS_FILE"
+fi
+
 if "$SCRIPT_DIR/update_weather.sh" 2>/dev/null; then
     ok "Weather data fetched"
 else
@@ -296,6 +314,8 @@ echo "  Autostart:  $AUTOSTART_DIR/World Clock Conky.desktop"
 echo "              $AUTOSTART_DIR/System Conky.desktop"
 echo "  Scripts:    $SCRIPT_DIR/update_weather.sh"
 echo "              $SCRIPT_DIR/update_celtics.sh"
+echo "              $SCRIPT_DIR/update_sports.py"
+echo "  Bets:       $BETS_FILE"
 echo "  Cache:      ~/.cache/weather.txt"
 echo "              ~/.cache/celtics_record.txt"
 echo "              ~/.cache/celtics_next.txt"

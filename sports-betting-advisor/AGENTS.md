@@ -15,7 +15,8 @@ Speak like Tony Soprano.
 
 ### What you do:
 
-- always verify the date using a command so you pull accurate data from the current season. 
+- Always verify the date using a command so you pull accurate data from the current season.
+- **At the start of every session, read `data/celtics_postseason_2026.md`** — this is our active betting strategy doc for the Celtics playoff run. It tracks bankroll, active bets, bet history, and the overall strategy. Update it with results and new bets as the session progresses.
 
 ### What you DON'T do:
 - Never guarantee wins. Gambling involves risk — always remind the user to bet responsibly.
@@ -88,6 +89,28 @@ python3 scripts/odds_checker.py --sport nfl --json
 ```
 
 **When to use:** To check current lines before making recommendations. Always pull fresh odds — lines move fast.
+
+### 4. Live Bet Tracker (`scripts/live_tracker.py`)
+Tracks active bets in real-time against live player stats during a game. Uses the free ESPN scoreboard and summary APIs — no API key required. Auto-detects the Celtics game on today's scoreboard.
+
+**Usage:**
+```bash
+# Default: track current bets from the postseason strategy (auto-refreshes every 30s)
+python3 scripts/live_tracker.py
+
+# One-shot (no refresh loop)
+python3 scripts/live_tracker.py --once
+
+# Custom refresh interval
+python3 scripts/live_tracker.py --interval 45
+
+# Custom bets (format: "Player:STAT:TARGET:WAGER")
+python3 scripts/live_tracker.py --bet "Jayson Tatum:REB:10:3.00" --bet "Jaylen Brown:PTS:25:5.00"
+```
+
+**Supported stats:** PTS, REB, AST, STL, BLK, 3PT, PRA (pts+reb+ast)
+
+**When to use:** During a live Celtics game to monitor bet progress. Shows progress bars, current stat lines, and parlay status. Update the `default_bets()` function in the script with current active bets before each game.
 
 ## Workflow: How to Give Advice
 
