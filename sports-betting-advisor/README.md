@@ -11,6 +11,7 @@ A collection of Python scripts and an AGENTS.md personality file that turns Devi
 | `scripts/nfl_stats.py` | Fetches NFL player game logs from ESPN's free API |
 | `scripts/odds_checker.py` | Pulls current DraftKings odds for NBA/NFL via The Odds API |
 | `scripts/live_tracker.py` | Real-time bet tracker using ESPN scoreboard API — tracks player props during live games |
+| `scripts/bet_intake.py` | HTTP server + OCR pipeline — receives DraftKings screenshots from iPhone and auto-updates active bets |
 | `data/celtics_postseason_2026.md` | Active betting strategy, bankroll tracker, and bet history for the 2026 Celtics playoff run |
 
 ## Quick Start
@@ -80,3 +81,85 @@ Example prompts:
 - "Give me your best NFL picks for this week's games"
 - "Check the DraftKings spread for tonight's Lakers game"
 - "How has Lamar Jackson been playing the last 5 games?"
+
+---
+
+## Bet Intake (iPhone → Server → Conky)
+
+The bet intake server lets you share DraftKings bet slip screenshots from your iPhone
+and have them automatically parsed and displayed in the conky live tracker.
+
+### Pipeline
+
+```
+DraftKings app → Share → iOS Shortcut → HTTP POST → bet_intake.py → OCR → active_bets.json → conky
+```
+
+### Server Setup
+
+The intake server runs as a systemd user service and starts on boot:
+
+```bash
+# Already set up — check status
+systemctl --user status bet-intake
+
+# Manual start/stop
+systemctl --user start bet-intake
+systemctl --user stop bet-intake
+
+# View logs
+journalctl --user -u bet-intake -f
+```
+
+Config in `config.env`:
+```
+INTAKE_PORT="8420"
+INTAKE_TOKEN="your-secret-token"
+```
+
+### iOS Shortcut Setup
+
+Create an iOS Shortcut named **"Send to Server"** with these steps:
+
+1. **Receive** `Images` input from **Share Sheet**
+2. **Get Contents of URL**:
+   - URL: `http://192.168.0.16:8420/upload`
+   - Method: **POST**
+   - Headers:
+     - `Authorization` → `Bearer YOUR_TOKEN_HERE`
+   - Request Body: **File**
+   - File: **Shortcut Input**
+3. **Get Dictionary Value** — key: `bets_found`
+4. **Show Notification**: `Found [Dictionary Value] bets`
+
+Then from DraftKings: **Share bet slip → tap "Send to Server"** in the share sheet.
+
+### API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/upload` | Upload bet slip image (OCR + parse → updates active bets) |
+| `POST` | `/bets` | Submit bets as JSON directly |
+| `GET` | `/bets` | View current active bets |
+| `DELETE` | `/bets` | Clear all active bets |
+| `GET` | `/health` | Health check |
+
+### CLI Usage
+
+```bash
+# Process a local screenshot
+python3 scripts/bet_intake.py --file /path/to/screenshot.png
+
+# Clear all bets
+python3 scripts/bet_intake.py --clear
+
+# Start server manually (for testing)
+python3 scripts/bet_intake.py --port 8420 --token mysecret
+```
+
+### Dependencies
+
+```bash
+sudo apt install tesseract-ocr
+pip install pillow  # or: already included in system python
+```
