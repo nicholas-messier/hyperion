@@ -237,14 +237,18 @@ def fetch_playoff_series():
             "headline": info["headline"],
         })
 
-    # Sort: East series first, then West (by headline text)
-    east = sorted([s for s in result if "East" in s["headline"]],
-                  key=lambda s: s["headline"])
-    west = sorted([s for s in result if "West" in s["headline"]],
-                  key=lambda s: s["headline"])
-    other = [s for s in result if "East" not in s["headline"]
-             and "West" not in s["headline"]]
-    result = east + west + other
+    # Sort by next event date: live games first, then soonest upcoming
+    def sort_key(s):
+        # Live games sort earliest (prefix "0")
+        if s["live_game"]:
+            return "0" + s["live_game"]["date"]
+        # Then scheduled games by date
+        if s["next_game"]:
+            return "1" + s["next_game"]["date"]
+        # Series with no upcoming game sort last
+        return "2"
+
+    result.sort(key=sort_key)
 
     PLAYOFF_CACHE.write_text(json.dumps({"timestamp": time.time(), "series": result}))
     return result
