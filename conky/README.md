@@ -25,7 +25,8 @@ See [`config.env.example`](../config.env.example) for available settings.
 | `update_weather.sh` | Fetches current conditions from NWS API -> `~/.cache/weather.txt` |
 | `update_celtics.sh` | Fetches next game + record from ESPN API -> `~/.cache/celtics_*.txt` |
 | `update_sports.py` | Smart sports display — shows live bet tracking during games, schedule otherwise |
-| `update_sports_dashboard.py` | Full sports panel — playoffs, active bets with live progress, bankroll status |
+| `update_sports_dashboard.py` | Full sports panel — playoffs, active bets with live progress, bankroll status. Also manages the live tracker daemon lifecycle. |
+| `game_monitor.py` | Standalone live-tracker lifecycle manager — runs from cron every 3 min as a fallback when conky is not running |
 | `install.sh` | One-command setup: installs deps, generates configs from templates, sets up cron, starts conky |
 
 ---
@@ -152,6 +153,58 @@ Active bets are defined in `~/.config/sports-bets/active_bets.json`:
 
 The display refreshes every 60 seconds. When no bets are active or no matching games are
 live, it automatically falls back to showing the next Celtics game schedule.
+
+---
+
+## Automatic Live Tracker
+
+The live bet tracker (`live_tracker.py --daemon`) is automatically started and stopped
+based on game status — no manual intervention needed.
+
+### How It Works
+
+Two trigger points ensure the tracker runs whenever a tracked game is active:
+
+1. **Conky dashboard (`update_sports_dashboard.py`)** — every 60 seconds, after rendering
+   the panel, it checks whether any bet games are `IN_PROGRESS`. If so and the tracker
+   daemon is not already running, it spawns `live_tracker.py --daemon` as a detached
+   background process. When all tracked games end, it sends `SIGTERM` to stop the daemon.
+
+2. **Cron fallback (`game_monitor.py`)** — runs every 3 minutes via cron. Same logic but
+   independent of conky, so the tracker still starts during SSH sessions or when conky is
+   not running.
+
+### State Files
+
+| File | Purpose |
+|------|---------|
+| `~/.cache/sports-bets/live_tracker.pid` | PID of the running daemon (used for lifecycle management) |
+| `~/.cache/sports-bets/live_tracker.log` | Latest tracker output (game scores, bet progress, parlays) |
+
+### Manual Control
+
+```bash
+# Check if tracker is running
+cat ~/.cache/sports-bets/live_tracker.pid 2>/dev/null && echo "running" || echo "stopped"
+
+# Start manually
+python3 ~/bin/sports-betting-advisor/scripts/live_tracker.py --daemon
+
+# Stop manually
+kill "$(cat ~/.cache/sports-bets/live_tracker.pid)"
+
+# View live output
+cat ~/.cache/sports-bets/live_tracker.log
+
+# Interactive terminal mode (auto-refreshing TUI)
+python3 ~/bin/sports-betting-advisor/scripts/live_tracker.py
+```
+
+### Cron Schedule
+
+```
+*/3 * * * * /usr/bin/python3 /home/nmessier/bin/conky/game_monitor.py
+```
 
 ---
 

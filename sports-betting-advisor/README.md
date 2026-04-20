@@ -63,11 +63,12 @@ python3 scripts/odds_checker.py --sport nba
 ### Live Bet Tracker (`live_tracker.py`)
 - Tracks active player prop bets against real-time stats during live games
 - Uses the free ESPN scoreboard and summary APIs (no API key)
-- Auto-detects Celtics game on today's scoreboard
+- **Multi-team support:** automatically reads `~/.config/sports-bets/active_bets.json` and finds games for all teams with active bets
 - Progress bars show how close each bet is to hitting
 - Parlay tracking across multiple legs
 - Auto-refreshes every 30 seconds (configurable)
-- Default bets loaded from the postseason strategy; custom bets via CLI
+- **Daemon mode (`--daemon`):** runs in the background, writes state to `~/.cache/sports-bets/live_tracker.log`, manages a PID file for lifecycle control
+- **Auto-triggered** by the conky sports dashboard and the `game_monitor.py` cron job whenever a tracked game goes live
 
 ## How It Works with Devin
 

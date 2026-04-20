@@ -16,6 +16,9 @@ Called from conky's execpi every 60 seconds:
 """
 
 import json
+import os
+import signal as signal_mod
+import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
@@ -526,6 +529,55 @@ def print_bankroll_section(bankroll):
         print(f"In Play: $${in_play:.2f}")
 
 
+# ── Live tracker process management ──────────────────────────
+
+TRACKER_SCRIPT = SCRIPT_DIR.parent / "sports-betting-advisor" / "scripts" / "live_tracker.py"
+TRACKER_PID = Path.home() / ".cache" / "sports-bets" / "live_tracker.pid"
+
+
+def _tracker_running():
+    """Check if the live tracker daemon is alive. Cleans stale PID file."""
+    if not TRACKER_PID.exists():
+        return False
+    try:
+        pid = int(TRACKER_PID.read_text().strip())
+        os.kill(pid, 0)  # signal 0 = existence check
+        return True
+    except (ValueError, ProcessLookupError, PermissionError, OSError):
+        TRACKER_PID.unlink(missing_ok=True)
+        return False
+
+
+def manage_live_tracker(games):
+    """Start or stop the live tracker daemon based on game status.
+
+    Called at the end of every dashboard refresh (60 s cycle).
+    - If any bet game is IN_PROGRESS and tracker is not running → start it.
+    - If no games are IN_PROGRESS and tracker IS running → stop it.
+    """
+    if not TRACKER_SCRIPT.exists():
+        return
+
+    any_live = any(g["status"] == "STATUS_IN_PROGRESS" for g in games)
+
+    if any_live and not _tracker_running():
+        TRACKER_PID.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.Popen(
+            [sys.executable, str(TRACKER_SCRIPT), "--daemon"],
+            start_new_session=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    elif not any_live and _tracker_running():
+        try:
+            pid = int(TRACKER_PID.read_text().strip())
+            os.kill(pid, signal_mod.SIGTERM)
+        except (ValueError, ProcessLookupError, PermissionError, OSError):
+            pass
+        TRACKER_PID.unlink(missing_ok=True)
+
+
 # ── Main ─────────────────────────────────────────────────────
 
 def main():
@@ -567,6 +619,13 @@ def main():
     # Section 3: Bankroll Status
     bankroll = load_bankroll()
     print_bankroll_section(bankroll)
+
+    # Auto-start/stop live tracker daemon when bet games go live
+    if games:
+        try:
+            manage_live_tracker(games)
+        except Exception:
+            pass  # never let process management break the dashboard
 
 
 if __name__ == "__main__":
