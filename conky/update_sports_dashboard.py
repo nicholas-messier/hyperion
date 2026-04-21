@@ -243,6 +243,50 @@ def fetch_playoff_series():
     return result
 
 
+def patch_series_with_live_data(series_list, scoreboard):
+    """Update cached series with fresh live game data from today's scoreboard.
+
+    The playoff cache may be up to 5 minutes stale, so games that just tipped
+    off can be missing from live_game.  This patches them in using the always-
+    fresh scoreboard response and re-sorts so live games appear first.
+    """
+    if not series_list or not scoreboard:
+        return
+
+    patched = False
+    for event in scoreboard.get("events", []):
+        comp = event["competitions"][0]
+        status_name = comp.get("status", {}).get("type", {}).get("name", "")
+        if status_name != "STATUS_IN_PROGRESS":
+            continue
+
+        competitors = comp.get("competitors", [])
+        game_teams = {c["team"]["abbreviation"] for c in competitors}
+        scores = {c["team"]["abbreviation"]: c.get("score", "0")
+                  for c in competitors}
+        detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
+
+        for s in series_list:
+            if s["higher_seed"] in game_teams and s["lower_seed"] in game_teams:
+                s["live_game"] = {
+                    "date": event["date"],
+                    "status": status_name,
+                    "detail": detail,
+                    "scores": scores,
+                }
+                patched = True
+                break
+
+    if patched:
+        def sort_key(s):
+            if s["live_game"]:
+                return "0" + s["live_game"]["date"]
+            if s["next_game"]:
+                return "1" + s["next_game"]["date"]
+            return "2"
+        series_list.sort(key=sort_key)
+
+
 def get_playoff_record(series_list, team_abbr):
     """Get a team's playoff win-loss from the series data."""
     for s in series_list:
@@ -581,14 +625,28 @@ def manage_live_tracker(games):
 # ── Main ─────────────────────────────────────────────────────
 
 def main():
-    # Section 1: NBA Playoffs
     series_list = None
+    scoreboard = None
+
     if requests is not None:
+        # Fetch playoff series (may come from cache)
         try:
             series_list = fetch_playoff_series()
         except Exception:
             pass
 
+        # Always fetch today's fresh scoreboard so we can patch stale
+        # cache entries and track live bets with the same data.
+        try:
+            scoreboard = get_scoreboard()
+        except Exception:
+            pass
+
+        # Patch cached series with real-time scores from the scoreboard
+        if series_list and scoreboard:
+            patch_series_with_live_data(series_list, scoreboard)
+
+    # Section 1: NBA Playoffs
     print_playoff_section(series_list)
 
     # Load bets for sections 2 and 3
@@ -597,21 +655,17 @@ def main():
     except Exception:
         bets, parlays = [], []
 
-    # If bets exist and games are live, fetch live stats
+    # If bets exist and scoreboard available, fetch live player stats
     game_stats = {}
     games = []
-    if bets and requests is not None:
+    if bets and scoreboard is not None:
         bet_teams = {espn_abbr(b["team"]) for b in bets if "team" in b}
-        try:
-            scoreboard = get_scoreboard()
-            games = find_bet_games(scoreboard, bet_teams)
-            for game in games:
-                try:
-                    game_stats[game["event_id"]] = get_player_stats(game["event_id"])
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        games = find_bet_games(scoreboard, bet_teams)
+        for game in games:
+            try:
+                game_stats[game["event_id"]] = get_player_stats(game["event_id"])
+            except Exception:
+                pass
 
     # Section 2: Active Bets
     print_bets_section(bets, parlays, game_stats, games)
