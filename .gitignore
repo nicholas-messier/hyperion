@@ -22,6 +22,7 @@ Thumbs.db
 
 # Local-only rules (not for GitHub)
 .windsurf/
+GPU-LOCKUP-FIX-PLAN.md
 
 # Editors
 *.swp

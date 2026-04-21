@@ -413,7 +413,10 @@ def eval_bet(all_stats, player, stat, target):
 # ── Section 1: Playoff output ───────────────────────────────
 
 def print_playoff_section(series_list):
-    """Print NBA Playoffs section for conky."""
+    """Print NBA Playoffs section for conky.
+
+    Shows only today's games and the next game day to save vertical space.
+    """
     config = read_config()
     team_abbr = config.get("SPORTS_TEAM", "BOS")
     team_name = config.get("SPORTS_TEAM_NAME", "Celtics")
@@ -435,18 +438,54 @@ def print_playoff_section(series_list):
     print(f"${{color #00ff00}}NBA Playoffs${{color}}")
     print(f"${{color #00ff00}}{team_name}: ({record})${{color}}")
 
+    now = datetime.now(LOCAL_TZ)
+    today = now.date()
+
+    # Bucket each series into its display date (live = today, else next_game date)
+    date_buckets = {}  # date -> list of series
+    for s in series_list:
+        if s["live_game"]:
+            game_date = today
+        elif s["next_game"]:
+            dt = datetime.fromisoformat(
+                s["next_game"]["date"].replace("Z", "+00:00")
+            ).astimezone(LOCAL_TZ).date()
+            game_date = dt
+        else:
+            continue
+        date_buckets.setdefault(game_date, []).append(s)
+
+    # Pick today + the next available day after today
+    show_dates = set()
+    if today in date_buckets:
+        show_dates.add(today)
+    future = sorted(d for d in date_buckets if d > today)
+    if future:
+        show_dates.add(future[0])
+
+    # If nothing today or future, show whatever we have
+    if not show_dates and date_buckets:
+        show_dates.add(min(date_buckets))
+
     for s in series_list:
         hs, ls = s["higher_seed"], s["lower_seed"]
         rec = f"{s['hs_wins']}-{s['ls_wins']}"
         matchup = f"{hs:<3} {rec} {ls:<3}"
 
         if s["live_game"]:
+            if today not in show_dates:
+                continue
             detail = s["live_game"]["detail"]
             sc = s["live_game"]["scores"]
             s_hs, s_ls = sc.get(hs, "?"), sc.get(ls, "?")
             print(f"${{color #ff6600}}{matchup}"
                   f"  {s_hs}-{s_ls} {detail}${{color}}")
         elif s["next_game"]:
+            dt = datetime.fromisoformat(
+                s["next_game"]["date"].replace("Z", "+00:00")
+            ).astimezone(LOCAL_TZ).date()
+            if dt not in show_dates:
+                continue
             when = format_game_time(s["next_game"]["date"])
             if team_abbr in (hs, ls):
                 print(f"${{color #add8e6}}{matchup}"
@@ -456,8 +495,7 @@ def print_playoff_section(series_list):
                       f"  {when}${{color}}")
             else:
                 print(f"{matchup}  {when}")
-        else:
-            print(f"${{color #888888}}{matchup}  TBD${{color}}")
+        # Skip series with no upcoming games
 
 
 # ── Section 2: Active bets output ───────────────────────────
@@ -470,8 +508,12 @@ def print_bets_section(bets, parlays, game_stats, games):
         print(f"${{color #888888}}No active bets${{color}}")
         return
 
-    # Calculate total in play
-    total_wager = sum(b.get("wager", 0) for b in bets)
+    # Separate straight bets (wager > 0) from parlay-only legs (wager == 0)
+    straight_bets = [b for b in bets if b.get("wager", 0) > 0]
+    parlay_legs = {(b["player"], b["stat"], b["target"]) for b in bets if b.get("wager", 0) == 0}
+
+    # Calculate total in play: straight bet wagers + parlay wagers
+    total_wager = sum(b.get("wager", 0) for b in straight_bets)
     total_wager += sum(p.get("wager", 0) for p in parlays)
     print(f"${{color #add8e6}}Active Bets${{color}}  $${total_wager:.0f} in play")
 
@@ -481,7 +523,7 @@ def print_bets_section(bets, parlays, game_stats, games):
         if g["status"] in TRACKABLE:
             live_teams.update(g["teams"])
 
-    for bet in bets:
+    for bet in straight_bets:
         player = bet["player"]
         stat = bet["stat"]
         target = bet["target"]
@@ -510,30 +552,49 @@ def print_bets_section(bets, parlays, game_stats, games):
             # Static display — no live game
             print(f"  $${wager:.0f} {short} {target}+ {label}")
 
-    # Parlay status
+    # Parlay status — show as header + indented bulleted legs
     for parlay in parlays:
         legs = parlay.get("legs", [])
         wager = parlay.get("wager", 0)
         name = parlay.get("name", "")
         hits = 0
         total = len(legs)
+        leg_details = []  # (short_name, stat, target, cur, status)
 
         for leg in legs:
             parts = leg.split(":")
             if len(parts) == 3:
+                p_name, p_stat, p_target = parts[0], parts[1], int(parts[2])
+                short = p_name.split()[-1] if " " in p_name else p_name
+                label = "PRA" if p_stat == "PRA" else p_stat
+                # Check all live games for this player
+                cur, s = None, "?"
                 for stats in game_stats.values():
-                    _, s = eval_bet(stats, parts[0], parts[1], int(parts[2]))
-                    if s == "HIT":
-                        hits += 1
+                    cur, s = eval_bet(stats, p_name, p_stat, p_target)
+                    if cur is not None:
                         break
+                if s == "HIT":
+                    hits += 1
+                leg_details.append((short, label, p_target, cur, s))
 
-        prefix = f"  $${wager:.0f} Parlay{' ' + name if name else ''}"
+        # Parlay header
+        prefix = f"$${wager:.0f} Parlay{' ' + name if name else ''}"
         if hits == total and total > 0:
-            print(f"${{color #00ff00}}{prefix}: {hits}/{total} HIT${{color}}")
+            print(f"${{color #00ff00}}  {prefix}: {hits}/{total} HIT${{color}}")
         elif hits > 0:
-            print(f"${{color #add8e6}}{prefix}: {hits}/{total} legs${{color}}")
+            print(f"${{color #add8e6}}  {prefix}: {hits}/{total}${{color}}")
         else:
-            print(f"{prefix}: {hits}/{total} legs")
+            print(f"  {prefix}: 0/{total}")
+
+        # Individual legs as indented bullets
+        for short, label, target, cur, s in leg_details:
+            if cur is not None:
+                if s == "HIT":
+                    print(f"${{color #00ff00}}    \u2713 {short} {label} {cur}/{target}${{color}}")
+                else:
+                    print(f"${{color #ffff00}}    \u25c6 {short} {label} {cur}/{target}${{color}}")
+            else:
+                print(f"    \u00b7 {short} {target}+ {label}")
 
 
 # ── Section 3: Bankroll output ───────────────────────────────

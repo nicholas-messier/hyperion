@@ -481,12 +481,14 @@ def default_bets():
     if loaded:
         return loaded
     return [
-        {"player": "Nikola Jokic", "stat": "REB", "target": 11, "wager": 6.00,
-         "team": "DEN", "parlay_group": "A", "parlay_wager": 3.00},
-        {"player": "Nikola Jokic", "stat": "AST", "target": 10, "wager": 4.00,
-         "team": "DEN"},
-        {"player": "Jalen Brunson", "stat": "PTS", "target": 23, "wager": 3.00,
-         "team": espn_abbr("NYK"), "parlay_group": "A", "parlay_wager": 3.00},
+        {"player": "Tyrese Maxey", "stat": "PTS", "target": 25, "wager": 4.00,
+         "team": espn_abbr("PHI")},
+        {"player": "Jayson Tatum", "stat": "REB", "target": 10, "wager": 5.00,
+         "team": "BOS"},
+        {"player": "Jaylen Brown", "stat": "PTS", "target": 25, "wager": 0,
+         "team": "BOS", "parlay_group": "A", "parlay_wager": 5.00},
+        {"player": "Victor Wembanyama", "stat": "BLK", "target": 3, "wager": 0,
+         "team": espn_abbr("SAS"), "parlay_group": "A", "parlay_wager": 5.00},
     ]
 
 
@@ -521,7 +523,9 @@ def display_multi_tracker(game_info_map, all_stats, bets):
     total_wagered = 0
     hits = 0
 
-    for i, bet in enumerate(bets, 1):
+    # Only show straight bets (wager > 0), not parlay-only legs
+    straight_bets = [b for b in bets if b.get("wager", 0) > 0]
+    for i, bet in enumerate(straight_bets, 1):
         player = bet["player"]
         stat = bet["stat"]
         target = bet["target"]
@@ -586,7 +590,10 @@ def display_multi_tracker(game_info_map, all_stats, bets):
     # Summary
     print()
     print(f"  {'\u2500' * 50}")
-    print(f"  Straight bets: {hits}/{len(bets)} hit | Total wagered: ${total_wagered:.2f}")
+    parlay_total = sum(w for w in {b.get("parlay_group"): b.get("parlay_wager", 0)
+                                    for b in bets if b.get("parlay_group")}.values())
+    total_display = total_wagered + parlay_total
+    print(f"  Straight bets: {hits}/{len(straight_bets)} hit | Total wagered: ${total_display:.2f}")
     print()
     print("  Press Ctrl+C to stop tracking")
     print("=" * 62)
@@ -613,7 +620,10 @@ def write_daemon_output(game_info_map, all_stats, bets):
 
     lines.append("")
 
+    # Only show straight bets (wager > 0), not parlay-only legs
     for i, bet in enumerate(bets, 1):
+        if bet.get("wager", 0) <= 0:
+            continue
         current, remaining, status = evaluate_bet(
             all_stats, bet["player"], bet["stat"], bet["target"])
         stat_label = "PRA" if bet["stat"] == "PRA" else bet["stat"]
