@@ -48,7 +48,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_ENV = SCRIPT_DIR.parent / "config.env"
 
 # Game statuses that trigger bet tracking display
-TRACKABLE = {"STATUS_IN_PROGRESS", "STATUS_FINAL"}
+# Include halftime / end-of-period — game is still live, just on a break
+TRACKABLE = {"STATUS_IN_PROGRESS", "STATUS_HALFTIME", "STATUS_END_PERIOD", "STATUS_FINAL"}
+LIVE_STATUSES = {"STATUS_IN_PROGRESS", "STATUS_HALFTIME", "STATUS_END_PERIOD"}
 
 # ESPN box score stat labels (default order)
 STAT_LABELS = [
@@ -137,7 +139,7 @@ def fetch_playoff_series():
         status = comp["status"]["type"]["name"]
         notes = comp.get("notes", [])
         headline = notes[0].get("headline", "") if notes else ""
-        if status in {"STATUS_IN_PROGRESS", "STATUS_SCHEDULED"}:
+        if status in LIVE_STATUSES | {"STATUS_SCHEDULED"}:
             for rn in round_names:
                 if rn in headline:
                     active_rounds.add(rn)
@@ -217,7 +219,7 @@ def fetch_playoff_series():
                     hs_wins += 1
                 else:
                     ls_wins += 1
-            elif g["status"] == "STATUS_IN_PROGRESS" and live_game is None:
+            elif g["status"] in LIVE_STATUSES and live_game is None:
                 live_game = g
             elif g["status"] == "STATUS_SCHEDULED" and next_game is None:
                 next_game = g
@@ -257,7 +259,7 @@ def patch_series_with_live_data(series_list, scoreboard):
     for event in scoreboard.get("events", []):
         comp = event["competitions"][0]
         status_name = comp.get("status", {}).get("type", {}).get("name", "")
-        if status_name != "STATUS_IN_PROGRESS":
+        if status_name not in LIVE_STATUSES:
             continue
 
         competitors = comp.get("competitors", [])
@@ -602,7 +604,7 @@ def manage_live_tracker(games):
     if not TRACKER_SCRIPT.exists():
         return
 
-    any_live = any(g["status"] == "STATUS_IN_PROGRESS" for g in games)
+    any_live = any(g["status"] in LIVE_STATUSES for g in games)
 
     if any_live and not _tracker_running():
         TRACKER_PID.parent.mkdir(parents=True, exist_ok=True)
