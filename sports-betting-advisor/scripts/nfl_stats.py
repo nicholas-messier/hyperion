@@ -10,11 +10,20 @@ Usage:
 """
 
 import argparse
+import json
 import sys
 from datetime import datetime
 from typing import Optional
 
 import requests
+
+# SQLite cache (optional — works without it)
+try:
+    from db import init_db as _init_db, cache_player_stats as _cache_stats, \
+        get_cached_stats as _get_cached, get_cache_status as _get_cache_status
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
 
 
 ESPN_SEARCH_URL = "https://site.api.espn.com/apis/common/v3/search"
@@ -251,6 +260,41 @@ def format_table(rows: list, season_labels: list) -> str:
     return "\n".join(lines)
 
 
+def _display_nfl_stats(player_name, season, info, rows, season_labels, avgs, args):
+    """Display formatted NFL stats output."""
+    print(f"\n{'='*70}")
+    print(f"  {player_name} - {season} NFL Season Stats")
+    if info:
+        print(f"  Position: {info.get('position', '?')} | Team: {info.get('team', '?')} | #{info.get('jersey', '?')}")
+    print(f"{'='*70}\n")
+    print(f"  Games: {len(rows)}\n")
+
+    if avgs:
+        print("  SEASON TOTALS / PER-GAME AVERAGES:")
+        print(f"  {'─'*55}")
+
+        for stat_key, vals in avgs.items():
+            stat_display = stat_key.replace("_", " ")
+            total = vals["total"]
+            avg = vals["avg"]
+            is_rate = vals.get("is_rate", False)
+            if is_rate:
+                avg_str = str(int(avg)) if avg == int(avg) else str(avg)
+                print(f"    {stat_display:<20} Avg: {avg_str:>8}")
+            else:
+                total_str = str(int(total)) if total == int(total) else str(total)
+                avg_str = str(int(avg)) if avg == int(avg) else str(avg)
+                print(f"    {stat_display:<20} Total: {total_str:>8}  |  Per Game: {avg_str:>6}")
+
+    if not args.averages_only:
+        suffix = f" (Last {args.last} games)" if args.last else ""
+        print(f"\n  GAME LOG{suffix}:")
+        print(f"  {'─'*55}")
+        print(format_table(rows, season_labels))
+
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Fetch NFL player stats for a season (via ESPN)"
@@ -270,7 +314,22 @@ def main():
         "--averages-only", "-a", action="store_true",
         help="Show only season averages",
     )
+    parser.add_argument(
+        "--refresh", action="store_true",
+        help="Force a fresh API call, ignoring any cached data",
+    )
+    parser.add_argument(
+        "--cache-status", action="store_true",
+        help="Show cache status for this player and exit",
+    )
     args = parser.parse_args()
+
+    # Initialize DB cache if available
+    if _HAS_DB:
+        try:
+            _init_db()
+        except Exception:
+            pass
 
     # Search for the player
     print(f"\nSearching for '{args.player}'...")
@@ -283,6 +342,41 @@ def main():
     player_id = player["id"]
     player_name = player["name"]
     print(f"Found: {player_name} (ESPN ID: {player_id})")
+
+    season_str = str(args.season)
+
+    # --cache-status: show cache info and exit
+    if args.cache_status:
+        if not _HAS_DB:
+            print("  Cache unavailable (db module not found)")
+            sys.exit(0)
+        status = _get_cache_status(player_name, "nfl", season_str)
+        if status:
+            fresh = "FRESH" if status["is_fresh"] else "STALE"
+            print(f"\n  Cache status for {player_name} ({season_str}):")
+            print(f"    Last fetched: {status['fetched_at']}")
+            print(f"    Age: {status['age_hours']:.1f} hours ({fresh})")
+            print(f"    Games cached: {status['games_played']}")
+        else:
+            print(f"\n  No cached data for {player_name} ({season_str})")
+        sys.exit(0)
+
+    # Try cache first (unless --refresh)
+    if _HAS_DB and not args.refresh:
+        try:
+            cached = _get_cached(player_name, "nfl", season_str)
+            if cached:
+                print(f"  [Using cached data — {cached['fetched_at'][:16]}]")
+                rows = cached["game_log_json"]
+                avgs = cached["averages_json"]
+                season_labels = ["Regular Season"] * len(rows)
+
+                info = get_player_info(player_id)
+                _display_nfl_stats(player_name, args.season, info, rows,
+                                   season_labels, avgs, args)
+                return
+        except Exception:
+            pass  # Cache miss or error — fetch from API
 
     # Get player info
     info = get_player_info(player_id)
@@ -302,41 +396,24 @@ def main():
         print("The season may not have started yet or the player didn't play.")
         sys.exit(1)
 
-    # Display header
-    print(f"\n{'='*70}")
-    print(f"  {player_name} - {args.season} NFL Season Stats")
-    if info:
-        print(f"  Position: {info.get('position', '?')} | Team: {info.get('team', '?')} | #{info.get('jersey', '?')}")
-    print(f"{'='*70}\n")
-    print(f"  Games: {len(rows)}\n")
-
-    # Season averages/totals
     avgs = calculate_averages(rows)
-    if avgs:
-        print("  SEASON TOTALS / PER-GAME AVERAGES:")
-        print(f"  {'─'*55}")
 
-        for stat_key, vals in avgs.items():
-            stat_display = stat_key.replace("_", " ")
-            total = vals["total"]
-            avg = vals["avg"]
-            is_rate = vals.get("is_rate", False)
-            if is_rate:
-                avg_str = str(int(avg)) if avg == int(avg) else str(avg)
-                print(f"    {stat_display:<20} Avg: {avg_str:>8}")
-            else:
-                total_str = str(int(total)) if total == int(total) else str(total)
-                avg_str = str(int(avg)) if avg == int(avg) else str(avg)
-                print(f"    {stat_display:<20} Total: {total_str:>8}  |  Per Game: {avg_str:>6}")
+    # Cache the results
+    if _HAS_DB:
+        try:
+            _cache_stats(
+                player_name=player_name,
+                sport="nfl",
+                season=season_str,
+                game_log_json=rows,
+                averages_json=avgs,
+                games_played=len(rows),
+            )
+        except Exception:
+            pass  # Cache write failed — non-fatal
 
-    # Game log
-    if not args.averages_only:
-        suffix = f" (Last {args.last} games)" if args.last else ""
-        print(f"\n  GAME LOG{suffix}:")
-        print(f"  {'─'*55}")
-        print(format_table(rows, season_labels))
-
-    print()
+    _display_nfl_stats(player_name, args.season, info, rows,
+                       season_labels, avgs, args)
 
 
 if __name__ == "__main__":

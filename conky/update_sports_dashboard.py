@@ -30,6 +30,15 @@ try:
 except ImportError:
     requests = None
 
+# SQLite database (optional — falls back to JSON if unavailable)
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                           / "sports-betting-advisor" / "scripts"))
+    from db import init_db as _init_db, get_bankroll as _db_get_bankroll
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 # ESPN API endpoints
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary"
@@ -310,7 +319,18 @@ def load_bets():
 
 
 def load_bankroll():
-    """Load bankroll data from the JSON config file."""
+    """Load bankroll data from DB (preferred) or JSON config file."""
+    # Try SQLite DB first
+    if _HAS_DB:
+        try:
+            _init_db()
+            br = _db_get_bankroll()
+            if br and br.get("total_deposited", 0) > 0:
+                return br
+        except Exception:
+            pass
+
+    # Fall back to JSON
     if not BANKROLL_FILE.exists():
         return None
     try:

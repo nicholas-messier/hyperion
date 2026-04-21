@@ -46,6 +46,14 @@ try:
 except ImportError:
     _requests = None
 
+# SQLite database (optional — falls back to JSON-only if unavailable)
+try:
+    from db import init_db as _init_db, record_bet as _db_record_bet, \
+        record_parlay as _db_record_parlay, sync_json as _db_sync_json
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 # ── Paths ────────────────────────────────────────────────────
 
 BETS_FILE = Path.home() / ".config" / "sports-bets" / "active_bets.json"
@@ -458,6 +466,50 @@ def update_active_bets(new_bets, new_parlays, mode="append"):
     return data
 
 
+# ── Database integration ─────────────────────────────────────
+
+def _write_to_db(bets, parlays):
+    """Write parsed bets to the SQLite database.
+
+    Falls back silently if the DB module is unavailable.
+    """
+    if not _HAS_DB:
+        return
+
+    try:
+        _init_db()
+
+        # Record parlays first
+        for parlay in parlays:
+            legs = []
+            for leg_str in parlay.get("legs", []):
+                parts = leg_str.split(":")
+                if len(parts) == 3:
+                    legs.append({
+                        "player": parts[0],
+                        "stat": parts[1],
+                        "target": int(parts[2]),
+                        "team": "",
+                    })
+            if legs:
+                _db_record_parlay(legs=legs, wager=parlay.get("wager", 0))
+
+        # Record straight bets (skip parlay legs with wager == 0)
+        for bet in bets:
+            if bet.get("wager", 0) > 0:
+                _db_record_bet(
+                    player=bet["player"],
+                    stat=bet["stat"],
+                    target=bet["target"],
+                    wager=bet["wager"],
+                    team=bet.get("team", ""),
+                )
+
+        _db_sync_json()
+    except Exception:
+        pass  # DB write failed — JSON file is the fallback
+
+
 # ── Full pipeline ────────────────────────────────────────────
 
 def process_image(image_path, mode="append"):
@@ -480,7 +532,10 @@ def process_image(image_path, mode="append"):
     # Parse bets from text
     bets, parlays = parse_betslip(raw_text)
 
-    # Update bets file
+    # Write to SQLite DB (primary), fall back to JSON-only if DB unavailable
+    _write_to_db(bets, parlays)
+
+    # Update bets file (JSON — backward compat for conky / live tracker)
     active = update_active_bets(bets, parlays, mode)
 
     return {
@@ -576,9 +631,10 @@ class BetIntakeHandler(BaseHTTPRequestHandler):
                 self._json_response(400, {"error": "invalid JSON"})
                 return
             mode = data.pop("mode", "append")
-            result = update_active_bets(
-                data.get("bets", []), data.get("parlays", []), mode
-            )
+            new_bets = data.get("bets", [])
+            new_parlays = data.get("parlays", [])
+            _write_to_db(new_bets, new_parlays)
+            result = update_active_bets(new_bets, new_parlays, mode)
             self._json_response(200, {"status": "updated", "active_bets": result})
         else:
             self._json_response(404, {"error": "not found"})

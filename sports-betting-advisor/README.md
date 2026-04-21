@@ -6,12 +6,15 @@ A collection of Python scripts and an AGENTS.md personality file that turns Devi
 
 | File | Description |
 |------|-------------|
-| `AGENTS.md` | Devin personality config — makes Devin act as "The Edge", a sharp sports betting analyst |
-| `scripts/nba_stats.py` | Fetches NBA player stats (per-game + averages) via the free nba_api |
-| `scripts/nfl_stats.py` | Fetches NFL player game logs from ESPN's free API |
+| `AGENTS.md` | Devin personality config — makes Devin act as "Juan Consuelo", a sharp sports betting analyst |
+| `scripts/db.py` | **SQLite database module** — single source of truth for bets, bankroll, and stats cache |
+| `scripts/migrate_data.py` | **One-time migration** — imports existing markdown/JSON data into the SQLite database |
+| `scripts/nba_stats.py` | Fetches NBA player stats (per-game + averages) via the free nba_api. **24hr caching via SQLite.** |
+| `scripts/nfl_stats.py` | Fetches NFL player game logs from ESPN's free API. **24hr caching via SQLite.** |
 | `scripts/odds_checker.py` | Pulls current DraftKings odds for NBA/NFL via The Odds API |
-| `scripts/live_tracker.py` | Real-time bet tracker using ESPN scoreboard API — tracks player props during live games |
-| `scripts/bet_intake.py` | HTTP server + OCR pipeline — receives DraftKings screenshots from iPhone and auto-updates active bets |
+| `scripts/live_tracker.py` | Real-time bet tracker using ESPN scoreboard API — tracks player props during live games. **Auto-settles bets in DB.** |
+| `scripts/bet_intake.py` | HTTP server + OCR pipeline — receives DraftKings screenshots from iPhone and auto-updates active bets. **Writes to DB + JSON.** |
+| `data/base_strategy.md` | **Universal betting strategy** — EV framework, confidence tiers, bankroll rules, hedging playbook |
 | `data/celtics_postseason_2026.md` | Active betting strategy, bankroll tracker, and bet history for the 2026 Celtics playoff run |
 
 ## Quick Start
@@ -30,6 +33,25 @@ python3 scripts/nfl_stats.py --player "Lamar Jackson" --season 2024
 export ODDS_API_KEY="your_key"  # Get one at https://the-odds-api.com
 python3 scripts/odds_checker.py --sport nba
 ```
+
+## Database
+
+All bet tracking, bankroll management, and player stats caching use a SQLite database at `~/.config/sports-bets/sports_bets.db`.
+
+```bash
+# Initialize the database (creates tables)
+python3 scripts/db.py
+
+# Migrate existing data from markdown/JSON into the database
+python3 scripts/migrate_data.py
+
+# Preview migration without writing (dry run)
+python3 scripts/migrate_data.py --dry-run
+```
+
+**Tables:** `bets`, `parlays`, `bankroll_ledger`, `player_stats_cache`
+
+JSON files (`bankroll.json`, `active_bets.json`) are still written for backward compatibility with conky. The `db.sync_json()` function keeps them in sync.
 
 ## Data Sources
 

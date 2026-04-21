@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import json
 import sys
 from typing import Optional
 
@@ -20,6 +21,14 @@ from nba_api.stats.endpoints import (
     playercareerstats,
 )
 from nba_api.stats.static import players
+
+# SQLite cache (optional — works without it)
+try:
+    from db import init_db as _init_db, cache_player_stats as _cache_stats, \
+        get_cached_stats as _get_cached, get_cache_status as _get_cache_status
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
 
 
 def find_player(name: str) -> Optional[dict]:
@@ -124,57 +133,17 @@ def calculate_averages(df: pd.DataFrame) -> dict:
     return avgs
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Fetch NBA player stats for a season"
-    )
-    parser.add_argument(
-        "--player", "-p", required=True, help="Player name (e.g., 'LeBron James')"
-    )
-    parser.add_argument(
-        "--season", "-s", type=int, default=2024,
-        help="Season year (e.g., 2024 for the 2024-25 season). Default: 2024",
-    )
-    parser.add_argument(
-        "--last", "-l", type=int, default=None,
-        help="Show only the last N games",
-    )
-    parser.add_argument(
-        "--averages-only", "-a", action="store_true",
-        help="Show only season averages",
-    )
-    args = parser.parse_args()
-
-    # Find the player
-    player = find_player(args.player)
-    if not player:
-        print(f"Player '{args.player}' not found.")
-        sys.exit(1)
-
-    player_name = f"{player['first_name']} {player['last_name']}"
-    player_id = player["id"]
-    season_str = get_season_string(args.season)
+def _display_stats(player_name, season_str, game_log, avgs, args):
+    """Display formatted stats output."""
+    games_played = len(game_log) if hasattr(game_log, '__len__') else 0
 
     print(f"\n{'='*70}")
     print(f"  {player_name} - {season_str} Season Stats")
     print(f"{'='*70}\n")
 
-    # Get game log
-    try:
-        game_log = get_player_game_log(player_id, season_str)
-    except Exception as e:
-        print(f"Error fetching game log: {e}")
-        sys.exit(1)
-
-    if game_log.empty:
-        print(f"No games found for {player_name} in the {season_str} season.")
-        sys.exit(0)
-
-    games_played = len(game_log)
     print(f"  Games Played: {games_played}\n")
 
     # Show season averages
-    avgs = calculate_averages(game_log)
     print("  SEASON AVERAGES:")
     print(f"  {'─'*50}")
     core_stats = {
@@ -197,12 +166,126 @@ def main():
             att_key = key.replace("_PCT", "A")
             print(f"    {label:.<20} {avgs.get(made_key, 0)}/{avgs.get(att_key, 0)}")
 
-    if not args.averages_only:
+    if not args.averages_only and hasattr(game_log, 'to_string'):
         print(f"\n  GAME LOG{'(Last ' + str(args.last) + ' games)' if args.last else ''}:")
         print(f"  {'─'*50}")
         print(format_game_log(game_log, args.last))
 
     print()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Fetch NBA player stats for a season"
+    )
+    parser.add_argument(
+        "--player", "-p", required=True, help="Player name (e.g., 'LeBron James')"
+    )
+    parser.add_argument(
+        "--season", "-s", type=int, default=2024,
+        help="Season year (e.g., 2024 for the 2024-25 season). Default: 2024",
+    )
+    parser.add_argument(
+        "--last", "-l", type=int, default=None,
+        help="Show only the last N games",
+    )
+    parser.add_argument(
+        "--averages-only", "-a", action="store_true",
+        help="Show only season averages",
+    )
+    parser.add_argument(
+        "--refresh", action="store_true",
+        help="Force a fresh API call, ignoring any cached data",
+    )
+    parser.add_argument(
+        "--cache-status", action="store_true",
+        help="Show cache status for this player and exit",
+    )
+    args = parser.parse_args()
+
+    # Find the player
+    player = find_player(args.player)
+    if not player:
+        print(f"Player '{args.player}' not found.")
+        sys.exit(1)
+
+    player_name = f"{player['first_name']} {player['last_name']}"
+    player_id = player["id"]
+    season_str = get_season_string(args.season)
+
+    # Initialize DB cache if available
+    if _HAS_DB:
+        try:
+            _init_db()
+        except Exception:
+            pass
+
+    # --cache-status: show cache info and exit
+    if args.cache_status:
+        if not _HAS_DB:
+            print("  Cache unavailable (db module not found)")
+            sys.exit(0)
+        status = _get_cache_status(player_name, "nba", season_str)
+        if status:
+            fresh = "FRESH" if status["is_fresh"] else "STALE"
+            print(f"\n  Cache status for {player_name} ({season_str}):")
+            print(f"    Last fetched: {status['fetched_at']}")
+            print(f"    Age: {status['age_hours']:.1f} hours ({fresh})")
+            print(f"    Games cached: {status['games_played']}")
+        else:
+            print(f"\n  No cached data for {player_name} ({season_str})")
+        sys.exit(0)
+
+    # Try cache first (unless --refresh)
+    if _HAS_DB and not args.refresh:
+        try:
+            cached = _get_cached(player_name, "nba", season_str)
+            if cached:
+                print(f"  [Using cached data — {cached['fetched_at'][:16]}]")
+                game_log_records = cached["game_log_json"]
+                avgs = cached["averages_json"]
+
+                # Reconstruct DataFrame for game log display
+                if game_log_records:
+                    game_log = pd.DataFrame(game_log_records)
+                else:
+                    game_log = pd.DataFrame()
+
+                _display_stats(player_name, season_str, game_log, avgs, args)
+                return
+        except Exception:
+            pass  # Cache miss or error — fetch from API
+
+    # Fetch from API
+    try:
+        game_log = get_player_game_log(player_id, season_str)
+    except Exception as e:
+        print(f"Error fetching game log: {e}")
+        sys.exit(1)
+
+    if game_log.empty:
+        print(f"No games found for {player_name} in the {season_str} season.")
+        sys.exit(0)
+
+    avgs = calculate_averages(game_log)
+
+    # Cache the results
+    if _HAS_DB:
+        try:
+            game_log_records = json.loads(game_log.to_json(orient="records",
+                                                            date_format="iso"))
+            _cache_stats(
+                player_name=player_name,
+                sport="nba",
+                season=season_str,
+                game_log_json=game_log_records,
+                averages_json=avgs,
+                games_played=len(game_log),
+            )
+        except Exception:
+            pass  # Cache write failed — non-fatal
+
+    _display_stats(player_name, season_str, game_log, avgs, args)
 
 
 if __name__ == "__main__":

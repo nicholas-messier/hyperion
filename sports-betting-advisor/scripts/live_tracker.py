@@ -38,6 +38,15 @@ from pathlib import Path
 
 import requests
 
+# SQLite database (optional — falls back to JSON if unavailable)
+try:
+    from db import init_db as _init_db, get_active_bets as _db_get_active_bets, \
+        settle_bet as _db_settle_bet, settle_parlay as _db_settle_parlay, \
+        sync_json as _db_sync_json
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary"
 TEAM_ABBR = "BOS"
@@ -68,13 +77,57 @@ def espn_abbr(team):
     return TEAM_ALIASES.get(team, team)
 
 
+def _load_from_db():
+    """Try to load active bets from the SQLite database.
+
+    Returns a list of bet dicts (same format as load_active_bets), or None
+    if the DB is unavailable or empty.
+    """
+    if not _HAS_DB:
+        return None
+    try:
+        _init_db()
+        bets, parlays = _db_get_active_bets()
+        if not bets:
+            return None
+
+        result = []
+        parlay_map = {p["id"]: p for p in parlays}
+
+        for b in bets:
+            entry = {
+                "player": b["player"],
+                "stat": b["stat"],
+                "target": b["target"],
+                "wager": b["wager"],
+                "team": espn_abbr(b.get("team", "")),
+                "parlay_group": None,
+                "parlay_wager": 0,
+                "db_id": b["id"],
+                "db_parlay_id": b.get("parlay_id"),
+            }
+            if b.get("parlay_id") and b["parlay_id"] in parlay_map:
+                entry["parlay_group"] = str(b["parlay_id"])
+                entry["parlay_wager"] = parlay_map[b["parlay_id"]]["wager"]
+            result.append(entry)
+
+        return result
+    except Exception:
+        return None
+
+
 def load_active_bets():
-    """Load bets from ~/.config/sports-bets/active_bets.json.
+    """Load bets from DB (preferred) or ~/.config/sports-bets/active_bets.json.
 
     Returns a list of bet dicts with keys: player, stat, target, wager,
-    team, parlay_group, parlay_wager.  Returns None if the file is
-    missing or empty.
+    team, parlay_group, parlay_wager.  Returns None if no bets found.
     """
+    # Try DB first
+    db_bets = _load_from_db()
+    if db_bets:
+        return db_bets
+
+    # Fall back to JSON
     if not BETS_FILE.exists():
         return None
     try:
@@ -662,6 +715,56 @@ def write_daemon_output(game_info_map, all_stats, bets):
     LOG_FILE.write_text("\n".join(lines) + "\n")
 
 
+def _auto_settle_bets(bets, all_stats):
+    """Auto-settle bets in the DB when all games are final.
+
+    Only runs if the DB module is available and bets have db_id fields.
+    """
+    if not _HAS_DB:
+        return
+
+    settled = 0
+    for bet in bets:
+        db_id = bet.get("db_id")
+        if not db_id:
+            continue
+
+        current, remaining, status = evaluate_bet(all_stats, bet["player"],
+                                                   bet["stat"], bet["target"])
+        if status == "HIT":
+            # Rough payout estimate (we don't have exact odds in all cases)
+            _db_settle_bet(db_id, "W", payout=bet.get("wager", 0) * 1.5)
+            settled += 1
+        elif status == "NEEDS MORE":
+            _db_settle_bet(db_id, "L", payout=0)
+            settled += 1
+
+    # Settle parlays
+    parlay_groups = {}
+    for b in bets:
+        grp = b.get("parlay_group")
+        if grp and b.get("db_parlay_id"):
+            parlay_groups.setdefault(b["db_parlay_id"], []).append(b)
+
+    for parlay_id, legs in parlay_groups.items():
+        all_hit = all(
+            evaluate_bet(all_stats, b["player"], b["stat"], b["target"])[2] == "HIT"
+            for b in legs
+        )
+        if all_hit:
+            wager = legs[0].get("parlay_wager", 0)
+            _db_settle_parlay(parlay_id, "W", payout=wager * 2.5)
+        else:
+            _db_settle_parlay(parlay_id, "L", payout=0)
+        settled += 1
+
+    if settled:
+        try:
+            _db_sync_json()
+        except Exception:
+            pass
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Live bet tracker — tracks active bets against real-time stats",
@@ -796,11 +899,12 @@ def main():
                 display_tracker(games[0], status_detail, teams,
                                 player_stats, bets, opp_abbr, opp_stats)
 
-            # All tracked games final? Done.
+            # All tracked games final? Settle bets and exit.
             active = [g for g in games
                       if g["status"] in ("STATUS_IN_PROGRESS", "STATUS_FINAL")]
             if active and all(g["status"] == "STATUS_FINAL" for g in active):
                 _print("\n  All tracked games are FINAL. Results above.\n")
+                _auto_settle_bets(bets, all_player_stats)
                 break
 
             # Refresh game statuses

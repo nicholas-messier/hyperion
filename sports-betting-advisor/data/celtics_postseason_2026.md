@@ -6,6 +6,7 @@
 **Current Bankroll:** $51.27
 **Advisor:** Juan Consuelo
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
+**Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, hedging playbook)
 
 ---
 
@@ -15,10 +16,8 @@
 2. [Active Bets](#active-bets)
 3. [Bet History](#bet-history)
 4. [Core Strategy](#core-strategy)
-5. [Bankroll Management Rules](#bankroll-management-rules)
-6. [Hedging Playbook](#hedging-playbook)
-7. [Player Profiles & Prop Targets](#player-profiles--prop-targets)
-8. [Round-by-Round Game Plan](#round-by-round-game-plan)
+5. [Player Profiles & Prop Targets](#player-profiles--prop-targets)
+6. [Round-by-Round Game Plan](#round-by-round-game-plan)
 
 ---
 
@@ -106,96 +105,33 @@
 
 ## Core Strategy
 
+> **Full strategy details (confidence tiers, bankroll management, odds floors, EV framework, hedging playbook) are in [`base_strategy.md`](base_strategy.md).** This section covers only the playoffs-specific approach.
+
 ### Philosophy: "The Grinder — Expanded"
 
-We ain't here to hit one big parlay and call it a day. That's how you go broke. We're here to **grind out consistent, data-backed wins** with a small bankroll and grow it methodically through the entire NBA playoffs. We started Celtics-only, went 3-0 opening night, and now we're expanding our operation to **all playoff games** to increase our volume of high-percentage bets.
+We ain't here to hit one big parlay and call it a day. We're here to **grind out consistent, data-backed wins** across the entire NBA playoffs. We started Celtics-only, went 3-0 opening night, and expanded to **all playoff games** to increase volume.
 
-More games = more opportunities. More opportunities = more chances to find value. But we stay disciplined — we don't bet every game just because it's on. We bet when the data says bet.
-
-### The Three Pillars
+### The Three Pillars (Playoffs-Specific)
 
 #### 1. Prop-Heavy Approach (Expanded Scope)
 - **Player props remain our bread and butter.** We know the Celtics inside and out, but we're now studying the full playoff field.
-- The key: **identify 2-3 "anchor" players per series** — star players with consistent, predictable stat lines. We focus our prop bets on these guys.
+- The key: **identify 2-3 "anchor" players per series** — star players with consistent, predictable stat lines.
 - Focus on **points, rebounds, and assists** — the stats with the most predictable baselines.
 - Avoid exotic props (first basket, exact score) — too much variance.
 - **Celtics games remain our highest-conviction plays.** Other series are supplementary.
 
 #### 2. Data-First, Value-First
 - **Never place a bet without pulling stats first.** Use `nba_stats.py` to check last 5-10 game trends before every bet.
-- Look for props where the line is lower than the player's recent average. That's where the value lives.
-- Track hit rates: if a player has hit an over in 7+ of last 10, that's a Strong Lean or Lock.
-- For non-Celtics games, require a Lock (85%+) or Strong Lean (70%+) to bet. No "Lean" bets on teams we don't know as well.
-- **ODDS FLOOR RULE (added Apr 21):** A high hit rate means nothing if the juice eats your profit. We learned this the hard way — going 3-1 on Night 2 and still losing $1.06 because DK had lines at -446 and -710. The books price known overs accordingly, so **hit rate alone is not enough to justify a bet.**
-  - **Do not place straight bets worse than -200.** If DK is juicing a line past -200, the implied probability is 67%+ and the payout is garbage. One loss wipes out multiple wins.
-  - **Parlays are the play for super-juiced props.** When two legs are individually juiced past -200 but both are Locks, combine them in a parlay where the combined odds offer real value (target -150 or better on the parlay).
-  - **Always check the odds BEFORE the hit rate.** Pull `odds_checker.py` first. If the line is past -200, skip the straight bet and look for a parlay or an alternate line with better value.
-  - **The sweet spot: 70%+ hit rate AND odds between -110 and -200.** That's where we print money.
+- For non-Celtics games, require a Lock (85%+) or Strong Lean (70%+). No "Lean" bets on unfamiliar teams.
+- **Always calculate EV** using the framework in `base_strategy.md` before placing any bet.
 
 #### 3. Small Ball, Big Picture — Volume Play
-- With $51.27 and a growing bankroll, we can afford slightly more action across more games.
-- Max single bet remains 25% of bankroll on Lock-level plays.
 - **Spread 2-4 bets per day across different games** rather than loading up on one game.
-- This diversification reduces the risk of one bad game wiping out a day's work.
 - Goal: **grow the bankroll 50% per round** — we're already ahead of pace at +62% after Game 1.
 
----
+### Lesson Learned (Apr 21): Odds Floor Rule
 
-## Bankroll Management Rules
-
-### Bet Sizing Tiers (Based on $51.27 Bankroll)
-
-| Confidence Level | Single Bet Size | Max % of Bankroll | Odds Floor | When to Use |
-|-----------------|----------------|-------------------|------------|-------------|
-| Lock (85%+) | $8-13 | 20-25% | -200 or better | Celtics anchor bets, elite props with real value |
-| Strong Lean (70-84%) | $5-8 | 10-15% | -175 or better | Secondary Celtics props, strong non-Celtics plays |
-| Lean (55-69%) | $2-3 | 5-10% | -150 or better | Celtics-only — no Lean bets on unfamiliar teams |
-| Fade (< 55%) | $0 — don't bet | 0% | — | Walk away |
-| Super-juiced Lock (past -200) | $0 straight / parlay only | 0% straight | n/a | Combine into 2-leg parlays at -150 or better |
-
-### Daily Budget Rule
-- **Max daily exposure: 30% of bankroll (~$15).** No matter how many games are on, we don't risk more than 30% in a single day.
-- This protects us from a catastrophic multi-game wipeout.
-- If we have 3 games with action, keep each bet to $2-4.
-
-### Parlay Rules
-- **Max 2-leg parlays only.** Three legs and beyond is a sucker's game at this bankroll size.
-- Parlay wagers capped at **10% of current bankroll (~$3).**
-- Both legs must independently be Strong Lean or better.
-- **Cross-game parlays allowed** — e.g., Brown 25+ PTS AND Jokic 10+ REB from different games. This actually reduces correlation risk compared to same-game parlays.
-- Parlays are our upside play — we should be profitable even if every parlay loses.
-
-### Bankroll Discipline
-- **Never chase losses.** If we lose a bet, the next bet stays within the tier system. No doubling up.
-- **Re-evaluate after each game.** Update the bankroll tracker, review what hit and what didn't, adjust the approach.
-- **Withdraw profits at milestones.** If bankroll hits $40 (2x starting), pull $10 back and play with house money. If it hits $60 (3x), pull another $10.
-
----
-
-## Hedging Playbook
-
-Hedging is how we protect our downside while still keeping upside. Here's how we do it with this bankroll:
-
-### Strategy 1: Correlated Props (Our Current Approach)
-- Bet the **high-confidence prop straight** (Brown 25+ PTS at $5).
-- Bet the **moderate-confidence prop straight** (Tatum 10+ REB at $3).
-- Add a **small parlay combining both** ($2) for bonus upside.
-- **Why this works:** If Brown hits (90% rate) but Tatum misses, we still profit on the Brown bet. If both hit, we cash all three. We only lose everything if Brown misses, which happens ~10% of the time.
-
-### Strategy 2: Opposite Side Hedge (For Bigger Bets Later)
-- When we have a larger bankroll and place a bigger wager, consider a **small hedge on the opposite outcome** if the game situation changes (e.g., player gets in early foul trouble).
-- DraftKings live betting allows mid-game hedges.
-- **Rule:** Only hedge if you can lock in a guaranteed profit or cut losses by 50%+.
-
-### Strategy 3: Series-Level Hedging
-- If we're running hot and up big on a series, we can take a **small position on the opponent** in a later game to guarantee profit for the series regardless of outcome.
-- Example: If bankroll is at $35 after Game 2, put $3 on the opponent's moneyline in Game 3. If the Celtics win, we're still up big. If they lose, the hedge softens the blow and we live to bet Game 4.
-
-### Strategy 4: Prop Diversification (Expanded)
-- With all playoff games in play, diversify props across **multiple series and multiple stars.**
-- Celtics props (Tatum, Brown) remain the core. Layer in high-confidence plays from other series (Jokic, Wembanyama, etc.).
-- If one game is a blowout (stars get benched early), the other games' props can still carry us.
-- **Never have more than 50% of daily exposure on a single game.**
+Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **Hit rate alone is not enough.** See the [Odds Floor Rules](base_strategy.md#odds-floor-rules) in the base strategy.
 
 ---
 
@@ -432,14 +368,14 @@ Hedging is how we protect our downside while still keeping upside. Here's how we
 ## Rules for Future Sessions
 
 When coming back to this strategy:
-1. **Always check the date** and figure out where we are in the series/playoffs.
-2. **Pull fresh stats** using `nba_stats.py` — don't rely on old data. Check all active series, not just Celtics.
-3. **Pull fresh odds** using `odds_checker.py` — lines move fast. Check what games are on today.
-4. **Check the odds floor BEFORE placing any straight bet.** No straight bets past -200. If the line is super-juiced, parlay it or skip it.
-5. **Update the bankroll tracker** with results from any completed bets.
-6. **Follow the bet sizing tiers** — no exceptions, no matter how good a bet "feels."
-7. **Check the tier system** before betting any non-Celtics game. Lock or Strong Lean only for non-Celtics plays.
-8. **Enforce the daily budget rule** — max 30% of bankroll in play per day.
+1. **Read `data/base_strategy.md` first**, then this document. The base doc has all universal rules.
+2. **Always check the date** and figure out where we are in the series/playoffs.
+3. **Pull fresh stats** using `nba_stats.py` — don't rely on old data. Check all active series, not just Celtics.
+4. **Pull fresh odds** using `odds_checker.py` — lines move fast. Check what games are on today.
+5. **Calculate EV** using the Value Betting Framework before recommending any bet.
+6. **Check the odds floor BEFORE placing any straight bet.** No straight bets past -200.
+7. **Update the bankroll tracker** with results from any completed bets.
+8. **Follow the bet sizing tiers** from `base_strategy.md` — no exceptions.
 9. **Update this document** with new bets, results, and session notes.
 
 ---
