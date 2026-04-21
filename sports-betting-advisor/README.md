@@ -1,12 +1,12 @@
 # Sports Betting Advisor
 
-A collection of Python scripts and an AGENTS.md personality file that turns Devin into a data-driven sports betting advisor for NBA and NFL, with a focus on DraftKings odds.
+A collection of Python scripts and an AGENTS.md personality file that turns Devin into a data-driven sports betting advisor for all betting sports, with a focus on DraftKings odds.
 
 ## What's Included
 
 | File | Description |
 |------|-------------|
-| `AGENTS.md` | Devin personality config — makes Devin act as "Juan Consuelo", a sharp sports betting analyst |
+| `AGENTS.md` | Devin personality config — makes Devin act as "Jay Trotter", a Philly cabbie turned data-driven sports betting advisor |
 | `scripts/db.py` | **SQLite database module** — single source of truth for bets, bankroll, and stats cache |
 | `scripts/migrate_data.py` | **One-time migration** — imports existing markdown/JSON data into the SQLite database |
 | `scripts/nba_stats.py` | Fetches NBA player stats (per-game + averages) via the free nba_api. **24hr caching via SQLite.** |
@@ -95,7 +95,7 @@ JSON files (`bankroll.json`, `active_bets.json`) are still written for backward 
 ## How It Works with Devin
 
 1. Place the `AGENTS.md` file in your repo root
-2. When you chat with Devin, it will adopt "The Edge" personality
+2. When you chat with Devin, it will adopt the "Jay Trotter" personality
 3. Ask for picks or analysis — Devin will run the scripts to pull real data
 4. Get data-backed recommendations with confidence ratings
 

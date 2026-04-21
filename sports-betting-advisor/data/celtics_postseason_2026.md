@@ -4,7 +4,7 @@
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
 **Current Bankroll:** $51.27
-**Advisor:** Juan Consuelo
+**Advisor:** Jay Trotter
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
 **Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, hedging playbook)
 
@@ -45,11 +45,12 @@
 | Apr 21, 2026 | Maxey Over 25+ PTS | -$4.00 | $47.27 |
 | Apr 21, 2026 | Tatum Over 10+ REB | -$5.00 | $42.27 |
 | Apr 21, 2026 | Parlay: Brown PTS + Wemby BLK | -$5.00 | $37.27 |
+| Apr 21, 2026 | Brown Over 25+ PTS (straight) | -$3.00 | $34.27 |
 
-**Current Balance (unwagered):** $37.27
+**Current Balance (unwagered):** $34.27
 **Total Deposited:** $40.00
-**Total Wagered:** $40.00
-**In Play:** $14.00
+**Total Wagered:** $43.00
+**In Play:** $17.00
 **Net Profit:** +$11.27
 
 ---
@@ -81,8 +82,16 @@
 - **Type:** Cross-Game Parlay (2-leg)
 - **Confidence:** Lean (65%) — Both legs individually strong, combined probability ~63%. Plus-money parlay on two juiced props = real value.
 
-**Total Wagered Tonight:** $14.00
-**Bankroll After Wagers:** $37.27
+**Bet 4: Jaylen Brown Over 25+ Points (Straight) — $3.00**
+- **Game:** Philadelphia 76ers @ Boston Celtics (Tue Apr 21, 11:10 PM ET)
+- **Odds:** -169 | Pays $4.78
+- **Type:** Player Prop (Points)
+- **Confidence:** Lock (90%) — hit 25+ in 9/10 last games. Our single best play every Celtics game.
+- **Data:** 28.7 PPG season, 30.4 PPG last 10. Implied prob 62.8%, actual 90% = +27.2% Value Zone gap. EV: +$0.43 per $1 wagered.
+- **Note:** Added as a straight bet to complement the parlay. Brown's 90% hit rate is too strong to only have tied to Wemby's blocks. Pushes daily exposure to 33% (slightly over 30% cap) — justified for a Lock-tier play.
+
+**Total Wagered Tonight:** $17.00
+**Bankroll After Wagers:** $34.27
 
 ---
 

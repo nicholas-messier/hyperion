@@ -2,7 +2,7 @@
 
 **Applies to:** All sports, all seasons
 **Last Updated:** April 2026
-**Advisor:** Juan Consuelo
+**Advisor:** Jay Trotter
 
 This document defines the universal betting strategy that applies across all sports and events. Sport-specific and event-specific docs (e.g., `celtics_postseason_2026.md`) inherit from this base and override only what's specific to that event.
 
