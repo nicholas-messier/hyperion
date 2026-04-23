@@ -147,6 +147,7 @@ def record_bet(player, stat, target, wager, team="", sport="nba",
         )
 
     conn.commit()
+    sync_json()
     return bet_id
 
 
@@ -196,6 +197,7 @@ def record_parlay(legs, wager, odds=0, placed_at=None):
         )
 
     conn.commit()
+    sync_json()
     return parlay_id
 
 
