@@ -117,7 +117,7 @@ def init_db():
 def record_bet(player, stat, target, wager, team="", sport="nba",
                odds=0, confidence="", parlay_id=None, notes="",
                placed_at=None):
-    """Insert a new bet. Returns the bet id."""
+    """Insert a new bet and update the bankroll ledger. Returns the bet id."""
     conn = _get_conn()
     ts = placed_at or datetime.now().isoformat()
     cur = conn.execute(
@@ -128,13 +128,32 @@ def record_bet(player, stat, target, wager, team="", sport="nba",
         (ts, player, team, sport, stat, target, odds, wager,
          confidence, parlay_id, notes),
     )
+    bet_id = cur.lastrowid
+
+    # Record bet placement in bankroll ledger (straight bets only, not parlay legs)
+    if wager > 0 and parlay_id is None:
+        row = conn.execute(
+            "SELECT balance FROM bankroll_ledger ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        current = row[0] if row else 0
+        new_balance = current - wager
+        odds_str = f" ({odds:+d})" if odds else ""
+        conn.execute(
+            """INSERT INTO bankroll_ledger
+               (timestamp, action, amount, balance, reference_id, notes)
+               VALUES (?, 'bet_placed', ?, ?, ?, ?)""",
+            (ts, -wager, new_balance, bet_id,
+             f"{player} {target:.0f}+ {stat}{odds_str} ${wager:.2f}"),
+        )
+
     conn.commit()
-    return cur.lastrowid
+    return bet_id
 
 
 def record_parlay(legs, wager, odds=0, placed_at=None):
-    """Insert a parlay and its legs. Returns the parlay id.
+    """Insert a parlay and its legs, and update the bankroll ledger.
 
+    Returns the parlay id.
     legs is a list of dicts with keys: player, stat, target, team, sport,
     odds, confidence, notes.
     """
@@ -156,6 +175,26 @@ def record_parlay(legs, wager, odds=0, placed_at=None):
              leg["stat"], leg["target"], leg.get("odds", 0), 0,
              leg.get("confidence", ""), parlay_id, leg.get("notes", "")),
         )
+
+    # Record parlay placement in bankroll ledger
+    if wager > 0:
+        row = conn.execute(
+            "SELECT balance FROM bankroll_ledger ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        current = row[0] if row else 0
+        new_balance = current - wager
+        leg_summary = " + ".join(
+            f"{l['player']} {l['stat']}" for l in legs
+        )
+        odds_str = f" ({odds:+d})" if odds else ""
+        conn.execute(
+            """INSERT INTO bankroll_ledger
+               (timestamp, action, amount, balance, reference_id, notes)
+               VALUES (?, 'bet_placed', ?, ?, ?, ?)""",
+            (ts, -wager, new_balance, parlay_id,
+             f"Parlay: {leg_summary}{odds_str} ${wager:.2f}"),
+        )
+
     conn.commit()
     return parlay_id
 
