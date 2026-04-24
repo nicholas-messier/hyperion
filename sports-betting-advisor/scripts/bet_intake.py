@@ -532,11 +532,18 @@ def process_image(image_path, mode="append"):
     # Parse bets from text
     bets, parlays = parse_betslip(raw_text)
 
-    # Write to SQLite DB (primary), fall back to JSON-only if DB unavailable
-    _write_to_db(bets, parlays)
-
-    # Update bets file (JSON — backward compat for conky / live tracker)
-    active = update_active_bets(bets, parlays, mode)
+    # Write to SQLite DB (primary) — sync_json() updates active_bets.json
+    # automatically.  Only fall back to direct JSON write when DB is
+    # unavailable so we don't double-write and create duplicates.
+    if _HAS_DB:
+        _write_to_db(bets, parlays)
+        # Read back the synced JSON for the return value
+        try:
+            active = json.loads(BETS_FILE.read_text())
+        except (json.JSONDecodeError, FileNotFoundError):
+            active = {"bets": bets, "parlays": parlays}
+    else:
+        active = update_active_bets(bets, parlays, mode)
 
     return {
         "raw_text": raw_text,
