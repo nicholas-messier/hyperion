@@ -271,6 +271,34 @@ def _find_player_stat(line):
     return None, None
 
 
+def _score_ocr_text(text):
+    """Score OCR text by how many bet-relevant components it contains.
+
+    Used to compare OCR results from different image preprocessing.
+    Higher score = more parseable bet data found.
+    """
+    score = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        cleaned = _clean_ocr_line(line)
+        # Target patterns: "14+", "25+"
+        if re.search(r"\b\d{1,3}\+", cleaned):
+            score += 3
+        # Odds patterns: "-151", "+200"
+        if re.search(r"[+-]\d{3}", cleaned):
+            score += 2
+        # Player + stat lines
+        p, s = _find_player_stat(cleaned)
+        if p and s:
+            score += 3
+        # Wager amount
+        if re.search(r"[Ww]ager.*\$\d+", line):
+            score += 2
+    return score
+
+
 def parse_betslip(text):
     """Parse DraftKings bet slip OCR text into structured bets.
 
@@ -316,6 +344,16 @@ def parse_betslip(text):
     elif re.search(r"[Pp]ar(?:lay|l?a?y?)\s*\+\d+", text, re.I):
         is_parlay = True
 
+    # ── Extract odds from text (e.g., "-151", "+200") ──────────
+    odds_value = None
+    for line in cleaned:
+        m = re.search(r"([+-]\d{3})", line)
+        if m:
+            val = int(m.group(1))
+            if -1000 < val < -100 or 100 < val < 1000:
+                odds_value = val
+                break
+
     # ── Strategy 1: DK share card format (N+ / Player Stat) ─
     # Collect targets (N+) and player+stat lines, pair them in order.
     targets = []        # (target_num, line_index)
@@ -355,7 +393,24 @@ def parse_betslip(text):
             bets.append({
                 "player": player, "team": team,
                 "stat": stat, "target": target, "wager": 0,
+                "odds": odds_value,
             })
+    elif player_stats:
+        # Fallback: player+stat found but OCR missed the target line.
+        # This happens when the player headshot merges with nearby text
+        # during image preprocessing, garbling the "N+" target.
+        # Create the bet anyway so it isn't silently dropped.
+        for player, stat, ps_idx in player_stats:
+            team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
+            bets.append({
+                "player": player, "team": team,
+                "stat": stat, "target": 0, "wager": 0,
+                "odds": odds_value,
+            })
+            sys.stderr.write(
+                f"[intake] WARNING: No target found for {player} {stat}"
+                f" — bet created with target=0, needs manual update\n"
+            )
 
     # ── Strategy 2: Traditional Over/Under format (fallback) ─
     if not bets:
@@ -434,9 +489,23 @@ def parse_betslip(text):
         parlays.append({"name": "", "legs": legs, "wager": wager or 0})
 
     # ── Fill in missing teams via ESPN player search ─────────
+    # Also clean player names: OCR noise from headshot areas can
+    # prepend short garbage words (e.g., "Ad Nikola Jokic").
+    # If the full name fails ESPN lookup, try trimming leading words.
     for bet in bets:
         if not bet.get("team"):
-            bet["team"] = lookup_player_team(bet["player"])
+            team = lookup_player_team(bet["player"])
+            if team:
+                bet["team"] = team
+            else:
+                words = bet["player"].split()
+                for start in range(1, len(words) - 1):
+                    trimmed = " ".join(words[start:])
+                    team = lookup_player_team(trimmed)
+                    if team:
+                        bet["player"] = trimmed
+                        bet["team"] = team
+                        break
 
     return bets, parlays
 
@@ -503,6 +572,7 @@ def _write_to_db(bets, parlays):
                     target=bet["target"],
                     wager=bet["wager"],
                     team=bet.get("team", ""),
+                    odds=bet.get("odds") or 0,
                 )
 
         _db_sync_json()
@@ -520,10 +590,20 @@ def process_image(image_path, mode="append"):
     # Preprocess
     processed = preprocess_image(image_path)
 
-    # OCR — try preprocessed first, fall back to original
-    raw_text = ocr_image(processed)
-    if len(raw_text.strip()) < 10:
-        raw_text = ocr_image(image_path)
+    # OCR — try both processed and original image, pick the one
+    # with more parseable bet data (targets, player names, odds).
+    # The preprocessed image can mangle numbers near player headshots,
+    # so the original sometimes produces better results for those regions.
+    processed_text = ocr_image(processed)
+    original_text = ocr_image(image_path) if processed != image_path else ""
+
+    proc_score = _score_ocr_text(processed_text)
+    orig_score = _score_ocr_text(original_text) if original_text else -1
+
+    if original_text and orig_score > proc_score:
+        raw_text = original_text
+    else:
+        raw_text = processed_text
 
     # Save raw OCR output for debugging
     ocr_path = INTAKE_DIR / f"{timestamp}_ocr.txt"
