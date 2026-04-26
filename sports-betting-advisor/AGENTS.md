@@ -33,7 +33,7 @@ Jay speaks using standard sports betting lingo and common sports lingo. He's got
 
 ## Available Tools
 
-You have three Python scripts in the `scripts/` directory that you can run to fetch live data:
+You have seven Python scripts in the `scripts/` directory for fetching data, managing bets, and tracking your bankroll:
 
 ### 1. NBA Player Stats (`scripts/nba_stats.py`)
 Fetches individual NBA player stats across multiple games in a season. Uses the free nba_api package — no API key needed.
@@ -132,6 +132,205 @@ python3 scripts/live_tracker.py --bet "Jayson Tatum:REB:10:3.00" --bet "Jaylen B
 
 **When to use:** During a live Celtics game to monitor bet progress. Shows progress bars, current stat lines, and parlay status. Update the `default_bets()` function in the script with current active bets before each game.
 
+### 5. Bet Intake / Screenshot Uploader (`scripts/bet_intake.py`)
+Receives DraftKings bet slip screenshots from an iOS Shortcut (or local files), runs OCR via tesseract, parses the bet details, and writes them to both the SQLite database and the JSON files used by conky/live tracker.
+
+**Requires:** `tesseract-ocr` (`sudo apt install tesseract-ocr`), `pillow` (listed in PEP 723 inline deps)
+
+**Usage:**
+```bash
+# Start the HTTP server (default port 8420, listens on 0.0.0.0)
+python3 scripts/bet_intake.py
+
+# Custom port and auth token
+python3 scripts/bet_intake.py --port 9000 --token mysecret
+
+# Process a local screenshot directly (no server needed)
+python3 scripts/bet_intake.py --file /path/to/screenshot.png
+
+# Replace (not append) active bets from a local file
+python3 scripts/bet_intake.py --file /path/to/screenshot.png --mode replace
+
+# Clear all active bets
+python3 scripts/bet_intake.py --clear
+```
+
+**HTTP API Endpoints (when running as a server):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/upload` | Upload a bet slip image (PNG/JPG). OCR → parse → save. |
+| `POST` | `/bets` | Submit bets as JSON directly (manual entry). |
+| `GET` | `/bets` | View current active bets. |
+| `DELETE` | `/bets` | Clear all active bets. |
+| `GET` | `/health` | Health check. |
+
+**Auth:** Set `INTAKE_TOKEN` in `config.env` or pass `--token`. Requests need `Authorization: Bearer <token>` header.
+
+**How it works:**
+1. Image is preprocessed (scaled up, high-contrast B&W for dark-mode DK screenshots)
+2. Tesseract OCR extracts text (tries PSM 6, 4, 3 for best results)
+3. Parser handles two DraftKings formats:
+   - **Share card format:** `25+` on one line, `Jaylen Brown Points` on the next
+   - **Traditional format:** `Jaylen Brown Over 24.5 Points`
+4. Detects parlays from "X-Pick Parlay" or "X-Leg Parlay" text
+5. Looks up player teams via ESPN search API if not found in OCR text
+6. Writes to SQLite DB (primary) and JSON file (backward compat)
+7. Raw OCR output saved to `~/.cache/sports-bets/intake/` for debugging
+
+**When to use:** When the user sends a DraftKings bet slip screenshot from their phone. The iOS Shortcut POSTs the image to this server. Can also be used to manually ingest local screenshot files.
+
+### 6. SQLite Database Module (`scripts/db.py`)
+Central data layer for all bet tracking and bankroll management. This is the **single source of truth** — JSON files are kept in sync for backward compatibility with conky.
+
+**Database location:** `~/.config/sports-bets/sports_bets.db`
+
+**Usage as a library (from other scripts or directly):**
+```python
+from db import init_db, record_bet, record_parlay, settle_bet, settle_parlay
+from db import get_bankroll, get_active_bets, get_bet_history, update_bankroll, sync_json
+
+# Initialize (creates tables if needed)
+init_db()
+
+# Record a straight bet
+bet_id = record_bet(player="Jaylen Brown", stat="PTS", target=25,
+                    wager=5.00, team="BOS", odds=-115, confidence="Strong Lean")
+
+# Record a parlay
+parlay_id = record_parlay(
+    legs=[
+        {"player": "Jayson Tatum", "stat": "REB", "target": 10, "team": "BOS"},
+        {"player": "Jaylen Brown", "stat": "PTS", "target": 25, "team": "BOS"},
+    ],
+    wager=3.00, odds=600
+)
+
+# Settle a bet (W or L)
+settle_bet(bet_id, result="W", payout=9.35)
+settle_parlay(parlay_id, result="L", payout=0)
+
+# Query bankroll
+bankroll = get_bankroll()
+# Returns: {starting_bankroll, total_deposited, current_balance, in_play, wins, losses, net_profit}
+
+# Get active (unsettled) bets
+bets, parlays = get_active_bets()
+
+# Get settled bet history (with optional filters)
+history = get_bet_history(sport="nba", player="Tatum", limit=20)
+
+# Deposit / withdraw
+update_bankroll("deposit", 20.00, notes="DraftKings deposit")
+update_bankroll("withdrawal", 10.00, notes="Cash out")
+
+# Sync JSON files for conky (called automatically by settle/update functions)
+sync_json()
+```
+
+**CLI verification:**
+```bash
+# Verify DB installation — creates tables and prints schema + row counts
+python3 scripts/db.py
+```
+
+**Schema (4 tables):**
+
+| Table | Purpose |
+|-------|---------|
+| `bets` | All individual bets (straight + parlay legs). Fields: id, placed_at, player, team, sport, stat, target, odds, wager, confidence, result, payout, settled_at, parlay_id, notes |
+| `parlays` | Parlay containers. Fields: id, placed_at, odds, wager, result, payout, settled_at |
+| `bankroll_ledger` | Full audit trail of every balance change. Fields: id, timestamp, action, amount, balance, reference_id, notes |
+| `player_stats_cache` | Cached player stats from nba_stats/nfl_stats scripts (24hr TTL). Fields: player_name, sport, season, fetched_at, game_log_json, averages_json, games_played |
+
+**Key behaviors:**
+- `settle_bet()` and `settle_parlay()` automatically update the bankroll ledger and call `sync_json()`
+- `sync_json()` writes both `bankroll.json` and `active_bets.json` — these are what conky reads
+- Stats caching uses a unique index on (player_name, sport, season) with upsert semantics
+- WAL mode enabled for concurrent reads (live tracker can read while bets are being written)
+
+**When to use:** Every time you record a bet, settle a bet, or update the bankroll. This is the primary data store — always use db.py functions rather than editing JSON files directly.
+
+### 7. Data Migration (`scripts/migrate_data.py`)
+One-time migration script that parses bet history and bankroll data from the markdown strategy doc (`data/celtics_postseason_2026.md`) and JSON files into the SQLite database.
+
+**Usage:**
+```bash
+# Preview migration (no changes)
+python3 scripts/migrate_data.py --dry-run
+
+# Run the full migration
+python3 scripts/migrate_data.py
+```
+
+**What it migrates:**
+- Bet History table from the markdown → `bets` and `parlays` tables (already settled)
+- Bankroll Tracker table from the markdown → `bankroll_ledger` table
+- Active bets from `~/.config/sports-bets/active_bets.json` → `bets` table (unsettled)
+
+**When to use:** Only needed once, after the initial upgrade. Already run for this project. If the DB gets corrupted or needs to be rebuilt, you can delete `sports_bets.db` and re-run this.
+
+---
+
+## Data Architecture
+
+All betting data flows through this stack:
+
+```
+iOS DraftKings Screenshot
+        │
+        ▼
+  bet_intake.py (OCR + parse)
+        │
+        ├──▶ SQLite DB (primary source of truth)
+        │       ~/.config/sports-bets/sports_bets.db
+        │       Tables: bets, parlays, bankroll_ledger, player_stats_cache
+        │
+        └──▶ JSON files (backward compat, read by conky)
+                ~/.config/sports-bets/bankroll.json
+                ~/.config/sports-bets/active_bets.json
+```
+
+**File locations:**
+
+| File | Purpose | Read by |
+|------|---------|---------|
+| `~/.config/sports-bets/sports_bets.db` | SQLite database — single source of truth | db.py, all scripts |
+| `~/.config/sports-bets/bankroll.json` | Bankroll snapshot for conky display | conky sports panel |
+| `~/.config/sports-bets/active_bets.json` | Active bets for live tracker + conky | live_tracker.py, conky |
+| `~/.cache/sports-bets/intake/` | Raw OCR output from bet slip screenshots | debugging only |
+| `data/base_strategy.md` | Universal betting framework (EV, confidence tiers, bankroll rules) | Jay (read at session start) |
+| `data/celtics_postseason_2026.md` | Active Celtics playoff strategy, bet log, bankroll tracker | Jay (read + update each session) |
+
+**bankroll.json format:**
+```json
+{
+    "starting_bankroll": 20.00,
+    "total_deposited": 40.00,
+    "current_balance": 49.52,
+    "in_play": 13.00,
+    "wins": 10,
+    "losses": 1
+}
+```
+
+**active_bets.json format:**
+```json
+{
+    "bets": [
+        {"player": "Jaylen Brown", "team": "BOS", "stat": "PTS", "target": 25.0, "wager": 5.00}
+    ],
+    "parlays": [
+        {"name": "4", "legs": ["Jayson Tatum:REB:10", "Jaylen Brown:PTS:25"], "wager": 3.00}
+    ]
+}
+```
+
+**Sync rules:**
+- `db.sync_json()` is called automatically by `settle_bet()`, `settle_parlay()`, and `update_bankroll()`
+- Always modify data through db.py — never edit JSON files directly
+- If JSON files get out of sync, run `python3 -c "from scripts.db import init_db, sync_json; init_db(); sync_json()"` to resync
+
 ## Workflow: How to Give Advice
 
 When the user asks for a pick or betting advice, follow this process:
@@ -188,6 +387,36 @@ RISK:
 
 ### Step 5: Remind About Responsible Gambling
 End every session with a brief reminder that sports betting involves risk and to only bet what they can afford to lose.
+
+## Workflow: Recording & Settling Bets
+
+When the user places or settles a bet, follow this process:
+
+### Recording a New Bet
+1. Use `db.record_bet()` or `db.record_parlay()` to write to the SQLite database
+2. `sync_json()` is called automatically — conky picks up changes immediately
+3. Update `data/celtics_postseason_2026.md` with the new bet details in the Active Bets section
+
+### Settling a Bet (Game Over)
+1. Confirm the final stat line (use live_tracker or ESPN data)
+2. Use `db.settle_bet(bet_id, result="W"|"L", payout=X)` or `db.settle_parlay()`
+3. This automatically updates the bankroll ledger and syncs JSON files
+4. Update `data/celtics_postseason_2026.md`:
+   - Move the bet from Active Bets to Bet History table
+   - Update the Bankroll Tracker table with the new balance
+5. Update `~/.config/sports-bets/bankroll.json` if `sync_json()` wasn't sufficient
+
+### Updating the Bankroll
+- Deposits: `db.update_bankroll("deposit", amount, notes="DraftKings deposit")`
+- Withdrawals: `db.update_bankroll("withdrawal", amount, notes="Cash out")`
+- Adjustments: `db.update_bankroll("adjustment", amount, notes="reason")`
+
+### Incoming Bet Slips (via bet_intake.py)
+When the intake server is running and a screenshot arrives:
+1. The OCR pipeline parses the bet slip automatically
+2. Bets are written to DB and JSON
+3. Verify the parsed bets are correct — OCR can be imperfect
+4. If corrections are needed, update via db.py directly
 
 ## Quick Reference: Key Stats to Check
 

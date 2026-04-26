@@ -3,7 +3,7 @@
 **Started:** April 2026 — NBA Playoffs Round 1
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
-**Current Bankroll:** $51.27
+**Current Bankroll:** $56.79
 **Advisor:** Jay Trotter
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
 **Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, hedging playbook)
@@ -46,52 +46,39 @@
 | Apr 21, 2026 | Tatum Over 10+ REB | -$5.00 | $42.27 |
 | Apr 21, 2026 | Parlay: Brown PTS + Wemby BLK | -$5.00 | $37.27 |
 | Apr 21, 2026 | Brown Over 25+ PTS (straight) | -$3.00 | $34.27 |
+| Apr 21, 2026 | Maxey Over 25+ PTS — WIN | +$6.64 | $40.91 |
+| Apr 21, 2026 | Tatum Over 10+ REB — WIN | +$8.78 | $49.69 |
+| Apr 21, 2026 | Parlay (Brown PTS + Wemby BLK) — WIN (early exit) | +$8.06 | $57.75 |
+| Apr 21, 2026 | Brown Over 25+ PTS — WIN | +$4.78 | $62.52 |
 
-**Current Balance (unwagered):** $34.27
+|| Apr 22, 2026 | Cade Cunningham 10+ AST (-122) | -$4.00 | $58.52 |
+|| Apr 22, 2026 | Jalen Duren 19+ PTS (-104) | -$6.00 | $52.52 |
+|| Apr 22, 2026 | Parlay: Cade AST + Duren PTS (+228) | -$3.00 | $49.52 |
+|| Apr 22, 2026 | Cade Cunningham 10+ AST — WIN | +$7.27 | $56.79 |
+|| Apr 22, 2026 | Jalen Duren 19+ PTS — LOSS | $0.00 | $56.79 |
+|| Apr 22, 2026 | Parlay (Cade AST + Duren PTS) — LOSS | $0.00 | $56.79 |
+|
+|| Apr 23, 2026 | Jokic Over 10+ AST (-133) | -$6.00 | $50.79 |
+|| Apr 23, 2026 | Parlay: Jokic AST + KAT REB (+144) | -$3.00 | $47.79 |
+|| Apr 24, 2026 | Jokic Over 10+ AST — LOSS | $0.00 | $47.79 |
+|| Apr 24, 2026 | Parlay (Jokic AST + KAT REB) — LOSS | $0.00 | $47.79 |
+|| Apr 24, 2026 | Brown Over 26+ PTS (-124) | -$5.00 | $42.79 |
+|| Apr 24, 2026 | Brown Over 26+ PTS — LOSS | $0.00 | $42.79 |
+|| Apr 25, 2026 | Jokic Over 14+ REB (-151) | -$3.00 | $39.79 |
+
+**Current Balance (unwagered):** $39.79
 **Total Deposited:** $40.00
-**Total Wagered:** $43.00
-**In Play:** $17.00
-**Net Profit:** +$11.27
+**Total Wagered:** $95.00
+**In Play:** $3.00
+**Net Profit:** +$2.79
 
 ---
 
 ## Active Bets
 
-### Tuesday Night Card — April 21, 2026
-
-**Bet 1: Tyrese Maxey Over 25+ Points — $4.00**
-- **Game:** Philadelphia 76ers @ Boston Celtics (Tue Apr 21, 7:00 PM ET)
-- **Odds:** -151 | Pays $6.64
-- **Type:** Player Prop (Points)
-- **Confidence:** Lean (55%) — hit 25+ in 4/10 last games. Higher risk, but odds are within our floor.
-- **Data:** 28.3 PPG season, 24.4 PPG last 10. Maxey chucks even in blowout losses.
-
-**Bet 2: Jayson Tatum Over 10+ Rebounds — $5.00**
-- **Game:** Philadelphia 76ers @ Boston Celtics (Tue Apr 21, 7:00 PM ET)
-- **Odds:** -132 | Pays $8.78
-- **Type:** Player Prop (Rebounds)
-- **Confidence:** Strong Lean (70%) — hit 10+ in 7/10 last games. Already cashed this in Game 1.
-- **Data:** 10.0 RPG season, 10.9 RPG last 10. -132 is right in the value sweet spot.
-
-**Bet 3: 2-Pick Parlay — Brown 25+ PTS + Wemby 3+ BLK — $5.00**
-- **Games:** PHI @ BOS + POR @ SAS (Cross-game parlay)
-- **Odds:** +130 | Pays $11.51
-- **Legs:**
-  - Jaylen Brown 25+ Points (-163) — Lock (90%), 9/10 last 10
-  - Victor Wembanyama 3+ Blocks (-234) — Strong Lean (70%), 7/10 last 10
-- **Type:** Cross-Game Parlay (2-leg)
-- **Confidence:** Lean (65%) — Both legs individually strong, combined probability ~63%. Plus-money parlay on two juiced props = real value.
-
-**Bet 4: Jaylen Brown Over 25+ Points (Straight) — $3.00**
-- **Game:** Philadelphia 76ers @ Boston Celtics (Tue Apr 21, 11:10 PM ET)
-- **Odds:** -169 | Pays $4.78
-- **Type:** Player Prop (Points)
-- **Confidence:** Lock (90%) — hit 25+ in 9/10 last games. Our single best play every Celtics game.
-- **Data:** 28.7 PPG season, 30.4 PPG last 10. Implied prob 62.8%, actual 90% = +27.2% Value Zone gap. EV: +$0.43 per $1 wagered.
-- **Note:** Added as a straight bet to complement the parlay. Brown's 90% hit rate is too strong to only have tied to Wemby's blocks. Pushes daily exposure to 33% (slightly over 30% cap) — justified for a Lock-tier play.
-
-**Total Wagered Tonight:** $17.00
-**Bankroll After Wagers:** $34.27
+| Bet | Odds | Wager | To Pay | Game |
+|-----|------|-------|--------|------|
+| Nikola Jokic Over 14+ REB | -151 | $3.00 | $4.98 | DEN @ MIN Game 4 (Apr 25) |
 
 ---
 
@@ -106,9 +93,19 @@
 | Apr 20 | Jokic Over 9.5 AST (-152) | $4.00 | L | $0.00 | -$4.00 |
 | Apr 20 | Brunson Over 22.5 PTS (-710) | $3.00 | W | $3.42 | +$0.42 |
 | Apr 20 | Parlay: Jokic REB + Brunson PTS (-256) | $3.00 | W | $4.17 | +$1.17 |
+| Apr 21 | Maxey Over 25+ PTS (-151) | $4.00 | W | $6.64 | +$2.64 |
+| Apr 21 | Tatum Over 10+ REB (-132) | $5.00 | W | $8.78 | +$3.78 |
+| Apr 21 | Parlay: Brown PTS + Wemby BLK (+130) | $5.00 | W (early exit) | $8.06 | +$3.06 |
+| Apr 21 | Brown Over 25+ PTS (-169) | $3.00 | W | $4.78 | +$1.78 |
+| Apr 22 | Cade Cunningham 10+ AST (-122) | $4.00 | W | $7.27 | +$3.27 |
+| Apr 22 | Jalen Duren 19+ PTS (-104) | $6.00 | L | $0.00 | -$6.00 |
+| Apr 22 | SGP: Cade AST + Duren PTS (+228) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 23 | Jokic Over 10+ AST (-133) | $6.00 | L | $0.00 | -$6.00 |
+| Apr 23 | Parlay: Jokic AST + KAT REB (+144) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 24 | Brown Over 26+ PTS (-124) | $5.00 | L | $0.00 | -$5.00 |
 
-**Record:** 6-1 (5 straight bets, 2 parlays)
-**Running P&L:** +$11.27
+**Record:** 11-6 (10 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
+**Running P&L:** +$2.79
 
 ---
 
@@ -141,6 +138,24 @@ We ain't here to hit one big parlay and call it a day. We're here to **grind out
 ### Lesson Learned (Apr 21): Odds Floor Rule
 
 Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **Hit rate alone is not enough.** See the [Odds Floor Rules](base_strategy.md#odds-floor-rules) in the base strategy.
+
+### Lesson Learned (Apr 22): Diversify Across Players, Not Just Games
+
+Going 1-2 on the DET-ORL card because $9 of $13 in exposure was tied to Jalen Duren (straight bet + parlay leg). When Duren went cold, both bets burned. **Spreading across different games isn't enough — spread across different players too.** One player having an off night shouldn't be able to sink the whole card.
+
+**Rule:** No more than 40% of daily exposure on a single player (including parlay legs). If a player appears in a straight bet AND a parlay, count both wagers toward that player's exposure.
+
+### Lesson Learned (Apr 22): Enforce the Single-Game Cap
+
+100% of tonight's action was on DET vs ORL. Hedging Strategy 4 already said "never have more than 50% of daily exposure on a single game" — we just didn't enforce it. When only one game is appealing, either find a second game to diversify into or cut the total exposure in half. **One game going sideways should never be able to sink the card.**
+
+### Lesson Learned (Apr 22): Tier Discipline on Parlays
+
+We put Cade Cunningham in a parlay leg despite him being listed as FADE in the player profiles. The parlay rule says both legs must be Strong Lean or better. If a player's data has changed enough to justify a parlay, **formally re-tier them first** — update the player profiles section, document the reasoning, then place the bet. No shortcuts.
+
+### Lesson Learned (Apr 22): SGP Teammate Correlation
+
+Cade-to-Duren was framed as "positively correlated upside." But correlation cuts both ways — when Detroit's offense stalls, both players tank. **Same-team SGP legs require Lock confidence on both sides.** Cross-game parlays remain preferred for de-correlated risk.
 
 ---
 
@@ -176,17 +191,16 @@ Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **H
 - **Our single best bet every Celtics game. Period.**
 
 #### Nikola Jokic (DEN) — "The Triple-Double Machine"
-| Stat | Season Avg | Last 10 Avg | Hit Rate | Prop Target |
-|------|-----------|-------------|----------|-------------|
-| Rebounds | 12.9 | 14.5 | **9/10 on 10+ (90%)** | **Over 10.5 REB — LOCK** |
-| Assists | 10.7 | 11.9 | **9/10 on 10+ (90%)** | **Over 9.5 AST — LOCK** |
-| Points | 27.7 | 25.3 | 8/10 on 20+ (80%) | Over 22.5 PTS — Strong Lean |
+| Stat | Season Avg | Last 10 Avg | Hit Rate (Last 20) | vs MIN | Prop Target |
+|------|-----------|-------------|---------------------|--------|-------------|
+| Rebounds | 12.9 | 14.5 | **14/19 on 10+ (74%) — 90% last 10** | 4/4 (100%) | **Over 10.5 REB — LOCK** |
+| Assists | 10.7 | 11.9 | **14/19 on 10+ (74%)** | ~3/6 (~50%) | ~~Over 9.5 AST~~ — **FADE vs MIN** |
+| Points | 27.7 | 25.3 | 8/10 on 20+ (80%) | — | Over 22.5 PTS — Lean (monitor) |
 
 - 65 games, 10-0 in last 10. The man is playing out of his mind.
-- Last 10 REB: 8, 16, 14, 8, 17, 15, 15, 21, 17, 14. Only dipped below 10 twice (both 8 in limited minutes).
-- Last 10 AST: 1, 10, 13, 13, 12, 8, 12, 19, 17, 14. The 1-assist game was only 18 minutes in a blowout.
-- Against Minnesota specifically — this is a physical, competitive series. Jokic should play full minutes.
-- **Jokic rebounds and assists are the best non-Celtics plays on the board.**
+- Last 10 REB: 8, 16, 14, 8, 17, 15, 15, 21, 17, 14. Only dipped below 10 twice (both 8 in limited minutes). Rebounding actually benefits from physical MIN matchup.
+- **ASSISTS RE-EVALUATION (Apr 24):** Last 10 AST: 1, 10, 13, 13, 12, 8, 12, 19, 17, 14. Originally called 90% Lock by excluding the 1-AST blowout. True rate: 8/10 (80%) last 10, 14/19 (74%) last 20 full-effort games. **Against Minnesota specifically: 3/4 regular season (75%), ~3/6 including playoffs (~50%).** Two consecutive playoff misses confirm MIN's defense disrupts his playmaking. The books had this closer to right at -152 (60.3% implied) than we gave them credit for.
+- **FADE Jokic assists for the remainder of the MIN series.** Rebounds remain a Lock — the physicality of the MIN matchup actually generates more boards. Assists are matchup-dependent and MIN is the wrong matchup.
 
 #### Victor Wembanyama (SAS) — "The Alien"
 | Stat | Season Avg | Last 10 Avg | Hit Rate | Prop Target |
@@ -258,9 +272,10 @@ Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **H
 - **FADE for now. Revisit if Detroit series goes long and we can study the matchup.**
 
 #### Cade Cunningham (DET) — "Cade"
-- 23.9 PPG / 9.9 APG season. Assists are intriguing but recent scoring has cratered: 7, 14, 13 in last 3.
-- Assists last 10: 14, 7, 10, 0(DNP-ish), 9, 15, 13, 15, 10, 8. Inconsistent.
-- **FADE scoring props. Revisit assists if line is set at 8.5 or lower.**
+- 23.9 PPG / 9.9 APG season. Scoring has cratered: 7, 14, 13 in last 3 regular season games.
+- Assists last 10: 14, 7, 10, 0(DNP-ish), 9, 15, 13, 15, 10, 8. Inconsistent across full sample.
+- **Apr 22 update:** Cade cashed 10+ AST tonight, confirming the distributing trend. His assists are overachieving late-season (11+ avg in 30+ min games). **Promote assists to Strong Lean at 10+ AST line if odds are -150 or better.** Scoring remains a FADE — he's a passer now, not a scorer.
+- **FADE scoring props. Assists at 10+ line are Strong Lean with good odds.**
 
 ---
 
@@ -304,16 +319,18 @@ Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **H
 
 ## Round-by-Round Game Plan
 
-### Round 1 — CURRENT (Bankroll: $51.27, Goal: $75+)
+### Round 1 — CURRENT (Bankroll: $47.79, Goal: $75+)
 
-**Status:** Games 1-2 in progress across multiple series. 6-1 record. Bankroll up 28% from $40 deposited.
+**Status:** Games 1-3 in progress across multiple series. 11-5 record. Bankroll at $47.79 (+19.5% from $40 deposited). Two consecutive losing nights — drawdown protocol active.
 
 **Daily Approach:**
 - Scan each day's games for Lock and Strong Lean props using the tier system above.
-- Prioritize: **Brown PTS (every Celtics game) > Jokic REB/AST (every DEN game) > Wemby PTS (every SAS game) > Tatum REB (every BOS game) > Brunson PTS/AST (every NYK game).**
-- Max daily exposure: ~$10 (30% of bankroll).
+- Prioritize: **Brown PTS (every Celtics game) > Jokic REB (every DEN game) > Wemby PTS (every SAS game) > Tatum REB (every BOS game) > Brunson PTS/AST (every NYK game).** *(Apr 24: Removed Jokic AST — FADE vs MIN.)*
+- Max daily exposure: **30% of current bankroll** (no hardcoded dollar amounts — recalculate each day).
+- Max single-game exposure: **50% of daily exposure.** Must spread across 2+ games.
+- Max single-player exposure: **40% of daily exposure** (including parlay legs).
 - Target 2-3 bets per day across different games.
-- Cross-game parlays allowed when both legs are Strong Lean or better.
+- Cross-game parlays allowed when both legs are Strong Lean or better. SGPs with teammates require both legs at Lock tier.
 
 **Series-Specific Notes:**
 - **OKC vs PHX:** Skip. Blowouts limit prop value. SGA might not play full minutes.
@@ -368,9 +385,78 @@ Going 3-1 on Night 2 and losing $1.06 because DK had lines at -446 and -710. **H
   - Jokic Over 9.5 AST (-152): **LOSS** — 8 assists. Only dished 8 in a game where Denver controlled the pace.
   - Brunson Over 22.5 PTS (-710): **WIN** — 29 points. Brunson showed up big in the playoff spotlight. Paid $3.42.
   - Parlay: Jokic REB + Brunson PTS (-256): **WIN** — Both legs hit. Paid $4.17.
-- **Bankroll: $36.33 → $51.27.** Net on the night: -$1.06 (heavy juice ate the margins).
+- **Bankroll: $36.33 -> $51.27.** Net on the night: -$1.06 (heavy juice ate the margins).
 - **Key takeaway:** We went 3-1 but the vig was brutal. DK had these lines juiced to the gills — -446 on Jokic boards, -710 on Brunson points. The books knew these were likely overs. We still profited on the parlay and the volume play, but straight bets on super-juiced lines barely moved the needle. Need to be more selective about the odds, not just the hit rate.
 - **Running totals:** 6-1 record, +$11.27 net profit, $51.27 bankroll.
+
+### April 21, 2026 — Session 4: Tuesday Night Sweep
+
+- **Bets settled from April 21 card (Celtics-Sixers Game 2, Spurs-Blazers Game 2).**
+- Results: **4-0 sweep.** Every single bet cashed. Best night yet.
+  - Maxey Over 25+ PTS (-151): **WIN** — Paid $6.64. Maxey came through as a Lean play — the contrarian angle on him chucking in a loss paid off.
+  - Tatum Over 10+ REB (-132): **WIN** — Paid $8.78. Board Man gets paid, again. That's 2/2 on Tatum rebounds in the series.
+  - Parlay: Brown PTS + Wemby BLK (+130): **WIN (early exit)** — Wembanyama went down with an injury. DK early exit protection triggered at -162 odds, paying $8.06 on a $5.00 wager. We'll take it — Brown's leg was already crushing.
+  - Brown Over 25+ PTS (-169): **WIN** — Paid $4.78. The most reliable bet on the board. Brown is automatic.
+- **Bankroll: $51.27 -> $62.52.** Net on the night: +$11.25.
+- **Key takeaway:** This is what disciplined, data-backed betting looks like. We stuck to our tiers, respected the odds floor, and spread across two games. The Wemby injury was bad luck for the parlay, but the early exit protection saved us and we still profited on it. Having the Brown straight bet as a hedge was the right call.
+- **Wemby injury note:** Monitor Wembanyama's status going forward. If he misses games, we lose one of our Lock plays (PTS) and a Strong Lean (BLK). May need to find replacement plays from the SAS-POR series or skip it entirely.
+- **Running totals:** 10-1 record, +$22.52 net profit, $62.52 bankroll.
+
+### April 22, 2026 — Session 5: Overachiever Hunt
+
+- **Deep-dive analysis on playoff overachievers** — compared late-season trends vs. season averages across all active series to find mispriced props.
+- **Key findings:**
+  - **LeBron James assists** — biggest overachiever in the playoffs. Season avg 7.2 AST, but averaging 10.4 AST in 30+ minute games over last 10. Massive gap the books haven't priced in. **FLAGGED FOR APR 25 (LAL @ HOU) — check DK when props drop Thu/Fri.**
+  - **Tatum assists** — sneaky surge from 5.3 season avg to 7.8 last 5. Under-the-radar playmaking.
+  - **Cade Cunningham assists** — scoring cratered but distributing at 11+ avg. Overachieving as a passer.
+  - **Jalen Duren points** — 70% hit rate on 19+ PTS, DK pricing at -104 (50.5% implied). Deep Value Zone.
+  - **Wemby injury note:** SAS-POR spread collapsed from -11.5 to -1.5. Wemby likely out or limited. Skip series until confirmed.
+- **Bets placed on DET vs ORL Game 3 (tonight):**
+  - Cade Cunningham 10+ AST (-122): $4.00 wager, pays $7.27. Value Zone play (67% hit rate vs 55% implied = +12% edge).
+  - Jalen Duren 19+ PTS (-104): $6.00 wager, pays $11.76. Strong Lean (70% hit rate vs 50.5% implied = +19.5% edge). Best value on tonight's board.
+  - SGP Parlay: Cade AST + Duren PTS (+228): $3.00 wager, pays $9.84. Positively correlated legs — when Cade dishes, Duren finishes.
+- **Total exposure tonight: $13.00 (20.8% of bankroll).** Within 30% daily cap.
+- **Bankroll: $62.52 → $49.52 unwagered, $13.00 in play.**
+
+### April 22, 2026 — Session 6: DET vs ORL Results
+
+- **Bets settled from April 22 card (Pistons-Magic Game 3).**
+- Results: 1-2 on the night. Cade delivered as a distributor but Duren couldn't get it going.
+  - Cade Cunningham 10+ AST (-122): **WIN** — Cade was slinging dimes all night. Paid $7.27.
+  - Jalen Duren 19+ PTS (-104): **LOSS** — Not Duren's night. The scoring just wasn't there.
+  - SGP: Cade AST + Duren PTS (+228): **LOSS** — Duren's leg sank the parlay despite Cade cashing his side.
+- **Bankroll: $49.52 → $56.79.** Net on the night: -$5.73.
+- **Key takeaway:** This is our first losing night of the playoffs. The Duren play had great value on paper — 70% hit rate vs 50.5% implied — but that's variance for you. Sometimes the data lines up and the player just doesn't have it. The mistake was loading $9 across two correlated Duren bets (straight + parlay leg). When one player tanks, it takes down both. Lesson: diversify across players, not just across games.
+- **Cade note:** Cunningham proved the assists play is real even when his scoring is inconsistent. Keep him on the watchlist for assists if the line stays at 9.5-10.5.
+- **Running totals:** 11-3 record, +$16.79 net profit, $56.79 bankroll.
+
+### April 23, 2026 — Session 6b: DEN vs MIN Game 2 (Unrecorded)
+
+- **Bets placed on DEN vs MIN Game 2:**
+  - Jokic Over 10+ AST (-133): $6.00 wager.
+  - Parlay: Jokic AST + Karl-Anthony Towns REB (+144): $3.00 wager.
+- **Total exposure: $9.00 (15.8% of bankroll).** Within daily cap.
+- **Results: 0-2.** Jokic missed assists for the second straight game vs Minnesota. KAT hit his rebound leg but the parlay sank with Jokic.
+  - Jokic Over 10+ AST: **LOSS** — Second consecutive miss vs MIN's defense.
+  - Parlay (Jokic AST + KAT REB): **LOSS** — KAT delivered on boards but Jokic leg killed it.
+- **Bankroll: $56.79 → $47.79.** Net on the night: -$9.00.
+- **BUG NOTE:** The Jokic straight bet (DB ID 22) was never settled in the system. The parlay was settled but the straight bet stayed "active" with $6 in play. Conky showed stale data. Fixed on Apr 24 during the assists autopsy session.
+- **Running totals:** 11-5 record, +$7.79 net profit, $47.79 bankroll.
+
+### April 24, 2026 — Session 7: Jokic Assists Autopsy
+
+- **Jokic missed assists for the second straight playoff game vs Minnesota.** Triggered a full re-evaluation of the Jokic AST prop.
+- **Root cause analysis — three mistakes in our original evaluation:**
+  1. **Cherry-picked sample:** Excluded the 1-AST blowout (fair) but then called it "9/10 = 90%." True last-10 rate was 8/10 = 80%. Even the honest 8/9 excluding the blowout = 89% was generous for a Lock.
+  2. **Ignored matchup data:** Never ran Jokic's head-to-head numbers vs Minnesota. Regular season: 3/4 (75%) on 10+ AST. Including two playoff misses: ~3/6 (~50%). This was never a Lock vs this opponent.
+  3. **Season average bias:** 10.7 AST season avg made the 9.5 line look easy. But averages hide variance that concentrates against elite defenses.
+- **Expanded sample tells the real story:** Over the last 20 full-effort games, Jokic hit 10+ AST in 14/19 = 74%. That's Strong Lean at best league-wide, and a clear FADE against Minnesota's defense specifically.
+- **Action taken:** Downgraded Jokic AST from **LOCK → FADE vs MIN.** Removed from the priority bet list. Rebounds remain a LOCK — the physical MIN matchup actually helps his boards.
+- **Lesson learned:** Always run matchup-specific hit rates before calling something a Lock. League-wide numbers can mask opponent-specific weaknesses. Adding this to the process checklist.
+
+### Lesson Learned (Apr 24): Matchup-Specific Hit Rates Are Mandatory
+
+Season-wide or last-10 hit rates are a starting point, not the final word. **Before any Lock or Strong Lean call, check the head-to-head hit rate against the specific opponent.** If the matchup-specific rate is more than 10% below the overall rate, downgrade one tier. If the matchup sample is small (< 3 games), treat the play as one tier lower than the league-wide data suggests.
 
 ---
 
@@ -382,10 +468,11 @@ When coming back to this strategy:
 3. **Pull fresh stats** using `nba_stats.py` — don't rely on old data. Check all active series, not just Celtics.
 4. **Pull fresh odds** using `odds_checker.py` — lines move fast. Check what games are on today.
 5. **Calculate EV** using the Value Betting Framework before recommending any bet.
-6. **Check the odds floor BEFORE placing any straight bet.** No straight bets past -200.
-7. **Update the bankroll tracker** with results from any completed bets.
-8. **Follow the bet sizing tiers** from `base_strategy.md` — no exceptions.
-9. **Update this document** with new bets, results, and session notes.
+6. **Check matchup-specific hit rates** against the actual opponent before tiering any prop. If matchup rate is 10%+ below the league-wide rate, downgrade one tier.
+7. **Check the odds floor BEFORE placing any straight bet.** No straight bets past -200.
+8. **Update the bankroll tracker** with results from any completed bets.
+9. **Follow the bet sizing tiers** from `base_strategy.md` — no exceptions.
+10. **Update this document** with new bets, results, and session notes.
 
 ---
 

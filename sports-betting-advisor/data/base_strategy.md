@@ -72,12 +72,25 @@ All sizing rules use **percentages of current bankroll**, not fixed dollar amoun
 
 **Max daily exposure: 30% of bankroll.** No matter how many games are on, never risk more than 30% in a single day. This protects against a catastrophic multi-game wipeout.
 
+**Always express the daily cap as a percentage.** Never hardcode a dollar amount — it goes stale as the bankroll changes.
+
+### Single-Game Exposure Limit
+
+**Max single-game exposure: 50% of daily exposure.** Never put more than half of the day's action on one game. If a game goes sideways — blowout, injury, bad reffing — it shouldn't be able to sink the entire card.
+
+### Single-Player Exposure Limit
+
+**Max single-player exposure: 40% of daily exposure (including parlay legs).** If a player appears in a straight bet AND a parlay, count both wagers toward that player's total. One player having an off night should never be able to tank the whole card.
+
+**Example:** Daily exposure is $15. Max on any single player = $6. If you have a $4 straight bet on Player X, their parlay leg can only account for $2 of the parlay wager.
+
 ### Parlay Rules
 
 - **Max 2-leg parlays only.** Three legs and beyond is a sucker's game at small-to-medium bankrolls.
 - Parlay wagers capped at **10% of current bankroll.**
-- Both legs must independently be **Strong Lean or better.**
+- **Both legs must independently be Strong Lean or better.** No exceptions. If a player is tiered as Lean or Fade, they don't go in a parlay — period. If the data has changed enough to justify a parlay leg, formally re-tier the player first.
 - **Cross-game parlays are preferred** over same-game parlays. Different games = less correlated risk.
+- **Same-game parlay (SGP) warning:** When both legs involve teammates (e.g., Player A assists and Player B points), they are positively correlated. That means they boom together AND bust together. If the team has a bad offensive night, both legs fail. **SGPs with same-team players must both be Lock tier.** Treat the positive correlation as added risk, not a bonus.
 - Parlays are the upside play — the grind should be profitable even if every parlay loses.
 - **Use parlays for super-juiced props:** When two legs are individually juiced past -200 but both are Locks, the parlay can offer real value at combined odds of -150 or better.
 
@@ -85,11 +98,22 @@ All sizing rules use **percentages of current bankroll**, not fixed dollar amoun
 
 If we lose a bet, the next bet stays within the tier system. No doubling up. No "revenge" bets. The data doesn't care about our feelings.
 
+### Drawdown Protocol
+
+After a losing session (net negative on the day):
+
+1. **Reduce next-day exposure by 25%.** If our normal daily cap is 30%, drop to ~22% the next day. One bad night doesn't mean the strategy is broken, but tightening up protects against tilt and consecutive losses.
+2. **Lock and Strong Lean only.** No Lean bets the day after a loss, even on the anchor team. Earn the right to loosen back up with a winning session.
+3. **Review what went wrong before placing new bets.** Was it bad luck (player underperformed despite good data) or bad process (broke a rule, skipped EV calc, ignored a red flag)? If it was process, fix it before betting again.
+4. **After two consecutive losing sessions:** Drop to Lock-only bets and cut daily exposure to 15% until a winning session resets the streak.
+
 ### Milestone Withdrawals
 
-- At **2x starting bankroll**: withdraw 25% of starting amount (play with house money buffer)
-- At **3x starting bankroll**: withdraw another 25%
-- At **5x starting bankroll**: withdraw original stake entirely — everything left is pure profit
+Milestones are based on **total deposited**, not starting bankroll. If you deposit more over time, the milestone targets adjust accordingly.
+
+- At **2x total deposited**: withdraw 25% of total deposited (lock in partial profit)
+- At **3x total deposited**: withdraw another 25% of total deposited
+- At **5x total deposited**: withdraw original total deposit — everything left is pure profit
 
 ### Re-evaluate After Every Session
 
@@ -229,7 +253,7 @@ Hedging is how we protect downside while keeping upside.
 - Diversify props across **multiple games and multiple stars**
 - Anchor team props are the core. Layer in high-confidence plays from other matchups.
 - If one game is a blowout, other games' props can still carry us.
-- **Never have more than 50% of daily exposure on a single game.**
+- See [Single-Game Exposure Limit](#single-game-exposure-limit) and [Single-Player Exposure Limit](#single-player-exposure-limit) for hard caps.
 
 ### Strategy 5: Live Betting Hedges
 
