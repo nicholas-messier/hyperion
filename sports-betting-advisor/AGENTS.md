@@ -33,7 +33,7 @@ Jay speaks using standard sports betting lingo and common sports lingo. He's got
 
 ## Available Tools
 
-You have seven Python scripts in the `scripts/` directory for fetching data, managing bets, and tracking your bankroll:
+You have eight Python scripts in the `scripts/` directory for fetching data, managing bets, and tracking your bankroll:
 
 ### 1. NBA Player Stats (`scripts/nba_stats.py`)
 Fetches individual NBA player stats across multiple games in a season. Uses the free nba_api package — no API key needed.
@@ -251,7 +251,50 @@ python3 scripts/db.py
 
 **When to use:** Every time you record a bet, settle a bet, or update the bankroll. This is the primary data store — always use db.py functions rather than editing JSON files directly.
 
-### 7. Data Migration (`scripts/migrate_data.py`)
+### 7. Auto-Settler (`scripts/auto_settle.py`)
+Automatically settles active bets when games go final. Fetches ESPN box scores, compares final player stats against active bets in the database, determines W/L, calculates DraftKings-accurate payouts from stored odds, and settles via db.py. No API key required.
+
+**Usage:**
+```bash
+# One-shot: settle any bets whose games are final, then exit
+python3 scripts/auto_settle.py
+
+# Watch mode: keep checking every 2 minutes until all bets are settled
+python3 scripts/auto_settle.py --watch
+
+# Watch with custom interval (seconds)
+python3 scripts/auto_settle.py --watch --interval 60
+
+# Dry run: show what would be settled without making changes
+python3 scripts/auto_settle.py --dry-run
+
+# Cron-friendly: no output unless something was settled
+python3 scripts/auto_settle.py --quiet
+```
+
+**Cron example (check every 15 minutes during game hours):**
+```cron
+*/15 18-23 * * * cd /path/to/sports-betting-advisor && python3 scripts/auto_settle.py --quiet
+```
+
+**How it works:**
+1. Reads all unsettled bets from the SQLite database
+2. Fetches today's NBA scoreboard from ESPN
+3. For each bet, finds the relevant game by team abbreviation
+4. If the game is STATUS_FINAL, fetches the full box score
+5. Compares the player's final stat line against the bet target (over/under)
+6. Calculates payout using DraftKings-accurate math (floors profit to the cent)
+7. Settles via `db.settle_bet()` / `db.settle_parlay()` — bankroll ledger and JSON sync happen automatically
+
+**What it handles:**
+- Straight bets (player over X stat)
+- Parlay legs (waits for all legs' games to go final before settling the parlay)
+- Composite stats (PRA = PTS + REB + AST)
+- DraftKings team abbreviation normalization (NYK→NY, SAS→SA, etc.)
+
+**When to use:** After games end to automatically update your bankroll without needing a manual session. Run it on a cron, or in watch mode during a game night, or manually whenever you want to sync results.
+
+### 8. Data Migration (`scripts/migrate_data.py`)
 One-time migration script that parses bet history and bankroll data from the markdown strategy doc (`data/celtics_postseason_2026.md`) and JSON files into the SQLite database.
 
 **Usage:**
@@ -289,6 +332,14 @@ iOS DraftKings Screenshot
         └──▶ JSON files (backward compat, read by conky)
                 ~/.config/sports-bets/bankroll.json
                 ~/.config/sports-bets/active_bets.json
+
+  ESPN Box Scores (game final)
+        │
+        ▼
+  auto_settle.py (compare stats vs targets)
+        │
+        ├──▶ settle_bet() / settle_parlay() → updates DB + bankroll ledger
+        └──▶ sync_json() → updates JSON files for conky
 ```
 
 **File locations:**
@@ -398,6 +449,10 @@ When the user places or settles a bet, follow this process:
 3. Update `data/celtics_postseason_2026.md` with the new bet details in the Active Bets section
 
 ### Settling a Bet (Game Over)
+
+**Automatic (preferred):** Run `python3 scripts/auto_settle.py` — it checks ESPN box scores, determines W/L, calculates DK-accurate payouts, and settles everything in the DB. Set it up on a cron or run in `--watch` mode during game nights. The strategy doc (`celtics_postseason_2026.md`) still needs manual updating during sessions.
+
+**Manual:** If auto-settle can't run (e.g., ESPN data issue, missing odds in DB):
 1. Confirm the final stat line (use live_tracker or ESPN data)
 2. Use `db.settle_bet(bet_id, result="W"|"L", payout=X)` or `db.settle_parlay()`
 3. This automatically updates the bankroll ledger and syncs JSON files

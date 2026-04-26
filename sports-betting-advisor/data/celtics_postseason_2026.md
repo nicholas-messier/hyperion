@@ -3,7 +3,7 @@
 **Started:** April 2026 — NBA Playoffs Round 1
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
-**Current Bankroll:** $56.79
+**Current Bankroll:** $44.77
 **Advisor:** Jay Trotter
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
 **Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, hedging playbook)
@@ -65,12 +65,14 @@
 || Apr 24, 2026 | Brown Over 26+ PTS (-124) | -$5.00 | $42.79 |
 || Apr 24, 2026 | Brown Over 26+ PTS — LOSS | $0.00 | $42.79 |
 || Apr 25, 2026 | Jokic Over 14+ REB (-151) | -$3.00 | $39.79 |
+|| Apr 26, 2026 | Jokic Over 14+ REB — WIN | +$4.98 | $44.77 |
+|| Apr 26, 2026 | Brown Over 25+ PTS (-170) | -$3.00 | $41.77 |
 
-**Current Balance (unwagered):** $39.79
+**Current Balance (unwagered):** $41.77
 **Total Deposited:** $40.00
-**Total Wagered:** $95.00
+**Total Wagered:** $98.00
 **In Play:** $3.00
-**Net Profit:** +$2.79
+**Net Profit:** +$4.77
 
 ---
 
@@ -78,7 +80,7 @@
 
 | Bet | Odds | Wager | To Pay | Game |
 |-----|------|-------|--------|------|
-| Nikola Jokic Over 14+ REB | -151 | $3.00 | $4.98 | DEN @ MIN Game 4 (Apr 25) |
+| Brown Over 25+ PTS | -170 | $3.00 | $4.76 | BOS @ PHI (7:00 PM) |
 
 ---
 
@@ -103,9 +105,10 @@
 | Apr 23 | Jokic Over 10+ AST (-133) | $6.00 | L | $0.00 | -$6.00 |
 | Apr 23 | Parlay: Jokic AST + KAT REB (+144) | $3.00 | L | $0.00 | -$3.00 |
 | Apr 24 | Brown Over 26+ PTS (-124) | $5.00 | L | $0.00 | -$5.00 |
+| Apr 25 | Jokic Over 14+ REB (-151) | $3.00 | W | $4.98 | +$1.98 |
 
-**Record:** 11-6 (10 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
-**Running P&L:** +$2.79
+**Record:** 12-6 (11 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
+**Running P&L:** +$4.77
 
 ---
 
@@ -319,9 +322,9 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 
 ## Round-by-Round Game Plan
 
-### Round 1 — CURRENT (Bankroll: $47.79, Goal: $75+)
+### Round 1 — CURRENT (Bankroll: $44.77, Goal: $75+)
 
-**Status:** Games 1-3 in progress across multiple series. 11-5 record. Bankroll at $47.79 (+19.5% from $40 deposited). Two consecutive losing nights — drawdown protocol active.
+**Status:** Games 1-4 in progress across multiple series. 12-6 record. Bankroll at $44.77 (+11.9% from $40 deposited). Jokic REB cashed to snap a two-night skid — drawdown protocol still applies (one winning result doesn't reset consecutive losing sessions).
 
 **Daily Approach:**
 - Scan each day's games for Lock and Strong Lean props using the tier system above.
