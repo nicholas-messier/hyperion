@@ -47,34 +47,16 @@ try:
 except ImportError:
     _HAS_DB = False
 
-SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
-SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary"
-TEAM_ABBR = "BOS"
-
-# ESPN box score stat labels in order
-STAT_LABELS = ["MIN", "PTS", "FG", "3PT", "FT", "REB", "AST", "TO", "STL", "BLK", "OREB", "DREB", "PF", "+/-"]
-
-# Map friendly stat names to indices in the ESPN stats array
-STAT_INDEX = {
-    "MIN": 0, "PTS": 1, "FG": 2, "3PT": 3, "FT": 4,
-    "REB": 5, "AST": 6, "TO": 7, "STL": 8, "BLK": 9,
-    "OREB": 10, "DREB": 11, "PF": 12, "+/-": 13,
-}
+# Import shared sport config
+from sport_config import (
+    SPORTS, espn_abbr, get_sport_urls, get_all_scoreboard_urls,
+    detect_sport, extract_player_stats_from_summary, get_stat_value,
+)
 
 # Config / state file paths
 BETS_FILE = Path.home() / ".config" / "sports-bets" / "active_bets.json"
 PID_FILE = Path.home() / ".cache" / "sports-bets" / "live_tracker.pid"
 LOG_FILE = Path.home() / ".cache" / "sports-bets" / "live_tracker.log"
-
-# Common abbreviation aliases (DraftKings/standard -> ESPN)
-TEAM_ALIASES = {
-    "NYK": "NY", "SAS": "SA", "GSW": "GS", "NOP": "NO", "UTA": "UTAH",
-}
-
-
-def espn_abbr(team):
-    """Normalize team abbreviation to ESPN format."""
-    return TEAM_ALIASES.get(team, team)
 
 
 def _load_from_db():
@@ -174,64 +156,45 @@ def load_active_bets():
 def find_active_games(bet_teams):
     """Find today's games involving any of the given team abbreviations.
 
+    Checks scoreboards for ALL 4 major sports (NBA, NFL, MLB, NHL).
     Returns a list of game dicts with: event_id, name, status, detail,
-    teams, scores, bet_teams.
+    teams, scores, bet_teams, sport.
     """
-    resp = requests.get(SCOREBOARD_URL, timeout=10)
-    resp.raise_for_status()
-    data = resp.json()
-
     games = []
-    for event in data.get("events", []):
-        comp = event.get("competitions", [{}])[0]
-        status = comp.get("status", {}).get("type", {}).get("name", "")
-        competitors = comp.get("competitors", [])
-        teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-        matching = bet_teams & set(teams)
-        if not matching:
+    for sport, url in get_all_scoreboard_urls().items():
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.RequestException:
             continue
-        scores = {c.get("team", {}).get("abbreviation", "???"): c.get("score", "0")
-                  for c in competitors}
-        games.append({
-            "event_id": event["id"],
-            "name": event.get("name", ""),
-            "status": status,
-            "detail": comp.get("status", {}).get("type", {}).get("shortDetail", status),
-            "teams": teams,
-            "scores": scores,
-            "bet_teams": matching,
-        })
+
+        for event in data.get("events", []):
+            comp = event.get("competitions", [{}])[0]
+            status = comp.get("status", {}).get("type", {}).get("name", "")
+            competitors = comp.get("competitors", [])
+            teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
+            matching = bet_teams & set(teams)
+            if not matching:
+                continue
+            scores = {c.get("team", {}).get("abbreviation", "???"): c.get("score", "0")
+                      for c in competitors}
+            games.append({
+                "event_id": event["id"],
+                "name": event.get("name", ""),
+                "status": status,
+                "detail": comp.get("status", {}).get("type", {}).get("shortDetail", status),
+                "teams": teams,
+                "scores": scores,
+                "bet_teams": matching,
+                "sport": sport,
+            })
     return games
 
 
-def get_all_stats(summary):
+def get_all_stats(summary, sport="nba"):
     """Extract player stats for BOTH teams from a game summary."""
-    all_stats = {}
-    for team_block in summary.get("boxscore", {}).get("players", []):
-        stats_block = team_block.get("statistics", [{}])[0]
-        labels = stats_block.get("labels", STAT_LABELS)
-        for athlete in stats_block.get("athletes", []):
-            name = athlete.get("athlete", {}).get("displayName", "Unknown")
-            raw = athlete.get("stats", [])
-            if not raw:
-                continue
-            parsed = {}
-            for i, label in enumerate(labels):
-                if i < len(raw):
-                    val = raw[i]
-                    if "-" in val and label in ("FG", "3PT", "FT"):
-                        parts = val.split("-")
-                        parsed[label] = int(parts[0])
-                        parsed[f"{label}A"] = int(parts[1])
-                    elif label == "+/-":
-                        parsed[label] = int(val.replace("+", "")) if val else 0
-                    else:
-                        try:
-                            parsed[label] = int(val)
-                        except ValueError:
-                            parsed[label] = val
-            all_stats[name] = parsed
-    return all_stats
+    return extract_player_stats_from_summary(summary, sport=sport)
 
 
 def write_pid():
@@ -251,29 +214,10 @@ def remove_pid():
         PID_FILE.unlink(missing_ok=True)
 
 
-def find_celtics_game():
-    """Find the live or most recent Celtics game from today's scoreboard."""
-    resp = requests.get(SCOREBOARD_URL, timeout=10)
-    resp.raise_for_status()
-    data = resp.json()
-
-    for event in data.get("events", []):
-        competitors = event.get("competitions", [{}])[0].get("competitors", [])
-        teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-        if TEAM_ABBR in teams:
-            status = event["competitions"][0]["status"]["type"]["name"]
-            return {
-                "event_id": event["id"],
-                "name": event["name"],
-                "status": status,
-                "detail": event["competitions"][0]["status"]["type"].get("shortDetail", status),
-            }
-    return None
-
-
-def get_box_score(event_id):
+def get_box_score(event_id, sport="nba"):
     """Fetch live box score for a game."""
-    resp = requests.get(SUMMARY_URL, params={"event": event_id}, timeout=10)
+    _, summary_url = get_sport_urls(sport)
+    resp = requests.get(summary_url, params={"event": event_id}, timeout=10)
     resp.raise_for_status()
     return resp.json()
 
@@ -294,86 +238,34 @@ def get_game_score(summary):
     return status_detail, teams
 
 
-def get_player_stats(summary, team_abbr=TEAM_ABBR):
+def get_player_stats_for_team(summary, team_abbr, sport="nba"):
     """Extract player stats for a team from the box score."""
-    players_data = summary.get("boxscore", {}).get("players", [])
-    for team_block in players_data:
-        if team_block.get("team", {}).get("abbreviation") == team_abbr:
-            stats_block = team_block.get("statistics", [{}])[0]
-            labels = stats_block.get("labels", STAT_LABELS)
-            players = {}
-            for athlete in stats_block.get("athletes", []):
-                name = athlete.get("athlete", {}).get("displayName", "Unknown")
-                raw_stats = athlete.get("stats", [])
-                if not raw_stats:
-                    continue
-                parsed = {}
-                for i, label in enumerate(labels):
-                    if i < len(raw_stats):
-                        val = raw_stats[i]
-                        # Handle "made-attempted" format (e.g., "7-11")
-                        if "-" in val and label in ("FG", "3PT", "FT"):
-                            parts = val.split("-")
-                            parsed[label] = int(parts[0])
-                            parsed[f"{label}A"] = int(parts[1])
-                        elif label == "+/-":
-                            parsed[label] = int(val.replace("+", "")) if val else 0
-                        else:
-                            try:
-                                parsed[label] = int(val)
-                            except ValueError:
-                                parsed[label] = val
-                players[name] = parsed
-            return players
-    return {}
+    all_stats = extract_player_stats_from_summary(summary, sport=sport)
+    return {name: stats for name, stats in all_stats.items()
+            if stats.get("_team") == team_abbr}
 
 
-def get_opponent_stats(summary, team_abbr=TEAM_ABBR):
+def get_opponent_stats(summary, team_abbr, sport="nba"):
     """Extract player stats for the opposing team."""
-    players_data = summary.get("boxscore", {}).get("players", [])
-    for team_block in players_data:
-        if team_block.get("team", {}).get("abbreviation") != team_abbr:
-            opp_abbr = team_block.get("team", {}).get("abbreviation", "???")
-            stats_block = team_block.get("statistics", [{}])[0]
-            labels = stats_block.get("labels", STAT_LABELS)
-            players = {}
-            for athlete in stats_block.get("athletes", []):
-                name = athlete.get("athlete", {}).get("displayName", "Unknown")
-                raw_stats = athlete.get("stats", [])
-                if not raw_stats:
-                    continue
-                parsed = {}
-                for i, label in enumerate(labels):
-                    if i < len(raw_stats):
-                        val = raw_stats[i]
-                        if "-" in val and label in ("FG", "3PT", "FT"):
-                            parts = val.split("-")
-                            parsed[label] = int(parts[0])
-                            parsed[f"{label}A"] = int(parts[1])
-                        elif label == "+/-":
-                            parsed[label] = int(val.replace("+", "")) if val else 0
-                        else:
-                            try:
-                                parsed[label] = int(val)
-                            except ValueError:
-                                parsed[label] = val
-                players[name] = parsed
-            return opp_abbr, players
-    return "???", {}
+    all_stats = extract_player_stats_from_summary(summary, sport=sport)
+    opp_abbr = "???"
+    opp_stats = {}
+    for name, stats in all_stats.items():
+        if stats.get("_team", "") != team_abbr and stats.get("_team", ""):
+            opp_abbr = stats["_team"]
+            opp_stats[name] = stats
+    return opp_abbr, opp_stats
 
 
-def evaluate_bet(player_stats, player_name, stat_key, target):
+def evaluate_bet(player_stats, player_name, stat_key, target, sport="nba"):
     """Check a player's current stat against the bet target."""
     stats = player_stats.get(player_name)
     if not stats:
         return None, None, "PLAYER NOT FOUND"
 
-    if stat_key == "PRA":
-        current = stats.get("PTS", 0) + stats.get("REB", 0) + stats.get("AST", 0)
-    elif stat_key == "3PT":
-        current = stats.get("3PT", 0)
-    else:
-        current = stats.get(stat_key, 0)
+    current = get_stat_value(stats, stat_key, sport=sport)
+    if current is None:
+        current = 0
 
     remaining = target - current
     if current >= target:
@@ -417,20 +309,22 @@ def display_tracker(game_info, status_detail, teams, player_stats, bets, opp_abb
     now = datetime.now().strftime("%I:%M:%S %p")
 
     print("=" * 62)
-    print("  CELTICS LIVE BET TRACKER")
+    print("  LIVE BET TRACKER")
     print(f"  Last updated: {now}")
     print("=" * 62)
 
     # Game score
     print()
-    bos_score = teams.get("BOS", {}).get("score", 0)
-    opp_team = [t for t in teams if t != "BOS"]
-    opp_name = opp_team[0] if opp_team else "OPP"
-    opp_score = teams.get(opp_name, {}).get("score", 0)
-
+    team_names = list(teams.keys())
+    if len(team_names) == 2:
+        t1, t2 = team_names
+        s1 = teams[t1].get("score", 0)
+        s2 = teams[t2].get("score", 0)
+        score_line = f"  {t1} {s1}  —  {t2} {s2}"
+    else:
+        score_line = "  Game"
     print(f"  {game_info['name']}")
     print(f"  {'─' * 50}")
-    score_line = f"  BOS {bos_score}  —  {opp_name} {opp_score}"
     print(score_line)
     print(f"  {status_detail}")
     print()
@@ -823,23 +717,10 @@ def main():
     bet_teams = {b["team"] for b in bets if b.get("team")}
 
     if bet_teams:
-        # Multi-team mode: find all games with bet teams
+        # Multi-team mode: find all games with bet teams (across all sports)
         games = find_active_games(bet_teams)
     else:
-        # Legacy single-team mode (no team info in bets)
-        game_info = find_celtics_game()
-        if game_info:
-            games = [{
-                "event_id": game_info["event_id"],
-                "name": game_info["name"],
-                "status": game_info["status"],
-                "detail": game_info["detail"],
-                "teams": ["BOS"],
-                "scores": {},
-                "bet_teams": {"BOS"},
-            }]
-        else:
-            games = []
+        games = []
 
     if not games:
         _print("\n  No games found for tracked teams on today's scoreboard.\n")
@@ -871,33 +752,26 @@ def main():
             for game in games:
                 if game["status"] not in ("STATUS_IN_PROGRESS", "STATUS_FINAL"):
                     continue
+                game_sport = game.get("sport", "nba")
                 try:
-                    summary = get_box_score(game["event_id"])
+                    summary = get_box_score(game["event_id"], sport=game_sport)
                     detail, team_scores = get_game_score(summary)
                     game_info_map[game["event_id"]] = {
                         "name": game["name"],
                         "detail": detail,
                         "teams": team_scores,
                         "status": game["status"],
+                        "sport": game_sport,
                     }
-                    all_player_stats.update(get_all_stats(summary))
+                    all_player_stats.update(get_all_stats(summary, sport=game_sport))
                 except Exception:
                     pass
 
             # Render output
             if args.daemon:
                 write_daemon_output(game_info_map, all_player_stats, bets)
-            elif bet_teams:
-                display_multi_tracker(game_info_map, all_player_stats, bets)
             else:
-                # Single-game legacy display (BOS only)
-                eid = games[0]["event_id"]
-                summary = get_box_score(eid)
-                status_detail, teams = get_game_score(summary)
-                player_stats = get_player_stats(summary, TEAM_ABBR)
-                opp_abbr, opp_stats = get_opponent_stats(summary, TEAM_ABBR)
-                display_tracker(games[0], status_detail, teams,
-                                player_stats, bets, opp_abbr, opp_stats)
+                display_multi_tracker(game_info_map, all_player_stats, bets)
 
             # All tracked games final? Settle bets and exit.
             active = [g for g in games
@@ -915,11 +789,6 @@ def main():
                             g["status"] = rg["status"]
                             g["detail"] = rg["detail"]
                             g["scores"] = rg["scores"]
-            else:
-                fresh = find_celtics_game()
-                if fresh:
-                    games[0]["status"] = fresh["status"]
-                    games[0]["detail"] = fresh["detail"]
 
             if args.once:
                 break

@@ -44,27 +44,14 @@ from db import (
     sync_json,
 )
 
-# ── ESPN API ─────────────────────────────────────────────────
+# ── Sport config ─────────────────────────────────────────────
 
-SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
-SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary"
-
-# Common abbreviation aliases (DraftKings/standard -> ESPN)
-TEAM_ALIASES = {
-    "NYK": "NY", "SAS": "SA", "GSW": "GS", "NOP": "NO", "UTA": "UTAH",
-}
-# Reverse map for display
-TEAM_ALIASES_REV = {v: k for k, v in TEAM_ALIASES.items()}
-
-
-def espn_abbr(team: str) -> str:
-    """Normalize team abbreviation to ESPN format."""
-    return TEAM_ALIASES.get(team, team)
-
-
-def dk_abbr(team: str) -> str:
-    """Convert ESPN abbreviation back to standard/DK format."""
-    return TEAM_ALIASES_REV.get(team, team)
+from sport_config import (
+    SPORTS, espn_abbr, dk_abbr, get_sport_urls,
+    get_all_scoreboard_urls, detect_sport,
+    extract_player_stats_from_summary, get_stat_value,
+    check_moneyline,
+)
 
 
 # ── Payout math ──────────────────────────────────────────────
@@ -92,114 +79,84 @@ def calc_payout(wager: float, odds: int) -> float:
 
 # ── ESPN data fetching ───────────────────────────────────────
 
-def fetch_scoreboard() -> dict:
-    """Fetch today's NBA scoreboard from ESPN."""
-    resp = requests.get(SCOREBOARD_URL, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+def fetch_all_scoreboards() -> dict:
+    """Fetch today's scoreboards for all sports.
+
+    Returns {sport_key: scoreboard_json}.
+    """
+    scoreboards = {}
+    for sport, url in get_all_scoreboard_urls().items():
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            scoreboards[sport] = resp.json()
+        except requests.RequestException:
+            pass
+    return scoreboards
 
 
-def fetch_box_score(event_id: str) -> dict:
+def fetch_box_score(event_id: str, sport: str = "nba") -> dict:
     """Fetch full game summary/box score from ESPN."""
-    resp = requests.get(SUMMARY_URL, params={"event": event_id}, timeout=10)
+    _, summary_url = get_sport_urls(sport)
+    resp = requests.get(summary_url, params={"event": event_id}, timeout=10)
     resp.raise_for_status()
     return resp.json()
 
 
-def get_final_games(scoreboard: dict) -> dict:
-    """Extract final games from scoreboard.
+def get_final_games(scoreboards: dict) -> dict:
+    """Extract final games from all scoreboards.
 
     Returns {team_abbr: event_info} mapping every team in a final game
-    to the game's event data.
+    to the game's event data (including which sport).
     """
     finals = {}
-    for event in scoreboard.get("events", []):
-        comp = event.get("competitions", [{}])[0]
-        status = comp.get("status", {}).get("type", {}).get("name", "")
-        if status != "STATUS_FINAL":
-            continue
-        competitors = comp.get("competitors", [])
-        teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-        info = {
-            "event_id": event["id"],
-            "name": event.get("name", ""),
-            "teams": teams,
-            "status": status,
-        }
-        for t in teams:
-            finals[t] = info
+    for sport, scoreboard in scoreboards.items():
+        for event in scoreboard.get("events", []):
+            comp = event.get("competitions", [{}])[0]
+            status = comp.get("status", {}).get("type", {}).get("name", "")
+            if status != "STATUS_FINAL":
+                continue
+            competitors = comp.get("competitors", [])
+            teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
+            info = {
+                "event_id": event["id"],
+                "name": event.get("name", ""),
+                "teams": teams,
+                "status": status,
+                "sport": sport,
+            }
+            for t in teams:
+                finals[t] = info
     return finals
 
 
-def get_in_progress_games(scoreboard: dict) -> dict:
-    """Extract in-progress games from scoreboard.
+def get_in_progress_games(scoreboards: dict) -> dict:
+    """Extract in-progress games from all scoreboards.
 
     Returns {team_abbr: event_info} for games currently being played.
     """
     in_progress = {}
-    for event in scoreboard.get("events", []):
-        comp = event.get("competitions", [{}])[0]
-        status = comp.get("status", {}).get("type", {}).get("name", "")
-        if status != "STATUS_IN_PROGRESS":
-            continue
-        competitors = comp.get("competitors", [])
-        teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-        detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
-        info = {
-            "event_id": event["id"],
-            "name": event.get("name", ""),
-            "teams": teams,
-            "status": status,
-            "detail": detail,
-        }
-        for t in teams:
-            in_progress[t] = info
-    return in_progress
-
-
-def extract_player_stats(summary: dict) -> dict:
-    """Extract all player stats from a game summary.
-
-    Returns {player_name: {stat: value, ...}}.
-    """
-    all_stats = {}
-    for team_block in summary.get("boxscore", {}).get("players", []):
-        stats_block = team_block.get("statistics", [{}])[0]
-        labels = stats_block.get("labels", [])
-        for athlete in stats_block.get("athletes", []):
-            name = athlete.get("athlete", {}).get("displayName", "Unknown")
-            raw = athlete.get("stats", [])
-            if not raw:
+    for sport, scoreboard in scoreboards.items():
+        for event in scoreboard.get("events", []):
+            comp = event.get("competitions", [{}])[0]
+            status = comp.get("status", {}).get("type", {}).get("name", "")
+            if status not in ("STATUS_IN_PROGRESS", "STATUS_HALFTIME",
+                              "STATUS_END_PERIOD"):
                 continue
-            parsed = {}
-            for i, label in enumerate(labels):
-                if i < len(raw):
-                    val = raw[i]
-                    if "-" in val and label in ("FG", "3PT", "FT"):
-                        parts = val.split("-")
-                        parsed[label] = int(parts[0])
-                        parsed[f"{label}A"] = int(parts[1])
-                    elif label == "+/-":
-                        parsed[label] = int(val.replace("+", "")) if val else 0
-                    else:
-                        try:
-                            parsed[label] = int(val)
-                        except ValueError:
-                            parsed[label] = val
-            all_stats[name] = parsed
-    return all_stats
-
-
-def get_stat_value(stats: dict, stat_key: str) -> int | None:
-    """Get a player's stat value, handling composite stats like PRA."""
-    if not stats:
-        return None
-    if stat_key == "PRA":
-        return stats.get("PTS", 0) + stats.get("REB", 0) + stats.get("AST", 0)
-    elif stat_key == "3PT":
-        return stats.get("3PT", 0)
-    else:
-        return stats.get(stat_key)
+            competitors = comp.get("competitors", [])
+            teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
+            detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
+            info = {
+                "event_id": event["id"],
+                "name": event.get("name", ""),
+                "teams": teams,
+                "status": status,
+                "detail": detail,
+                "sport": sport,
+            }
+            for t in teams:
+                in_progress[t] = info
+    return in_progress
 
 
 # ── Settlement logic ─────────────────────────────────────────
@@ -218,18 +175,25 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
             print("No active bets to settle.")
         return {"settled": 0, "wins": 0, "losses": 0, "pending": 0, "errors": []}
 
-    # Fetch scoreboard
+    # Fetch scoreboards for all sports
     try:
-        scoreboard = fetch_scoreboard()
-    except requests.RequestException as e:
-        msg = f"Failed to fetch scoreboard: {e}"
+        scoreboards = fetch_all_scoreboards()
+    except Exception as e:
+        msg = f"Failed to fetch scoreboards: {e}"
         if not quiet:
             print(f"ERROR: {msg}")
         return {"settled": 0, "wins": 0, "losses": 0,
                 "pending": len(bets), "errors": [msg]}
 
-    final_games = get_final_games(scoreboard)
-    in_progress = get_in_progress_games(scoreboard)
+    if not scoreboards:
+        msg = "No scoreboards available"
+        if not quiet:
+            print(f"ERROR: {msg}")
+        return {"settled": 0, "wins": 0, "losses": 0,
+                "pending": len(bets), "errors": [msg]}
+
+    final_games = get_final_games(scoreboards)
+    in_progress = get_in_progress_games(scoreboards)
 
     # Group bets by team to minimize API calls
     team_bets = {}       # espn_team -> [bet, ...]
@@ -254,9 +218,10 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
         event_id = final_games[team]["event_id"]
         if event_id in game_stats:
             continue
+        sport = final_games[team].get("sport", "nba")
         try:
-            summary = fetch_box_score(event_id)
-            game_stats[event_id] = extract_player_stats(summary)
+            summary = fetch_box_score(event_id, sport=sport)
+            game_stats[event_id] = extract_player_stats_from_summary(summary, sport=sport)
         except requests.RequestException as e:
             if not quiet:
                 print(f"  Warning: Could not fetch box score for {final_games[team]['name']}: {e}")
@@ -273,6 +238,7 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
     for bet in bets:
         team = espn_abbr(bet.get("team", ""))
         bet_id = bet["id"]
+        bet_sport = bet.get("sport", "") or detect_sport(team, bet.get("stat", ""))
 
         # Check if this bet's game is final
         if team not in final_games:
@@ -288,25 +254,37 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
             results["pending"] += 1
             continue
 
-        # Look up player stats
-        player_stats = all_player_stats.get(bet["player"])
-        if player_stats is None:
-            if not quiet:
-                print(f"  WARNING: {bet['player']} not found in box score"
-                      f" for {final_games[team]['name']}")
-            results["errors"].append(f"Player not found: {bet['player']}")
-            results["pending"] += 1
-            continue
+        game_sport = final_games[team].get("sport", bet_sport or "nba")
 
-        stat_val = get_stat_value(player_stats, bet["stat"])
-        if stat_val is None:
-            results["errors"].append(
-                f"Stat {bet['stat']} not found for {bet['player']}")
-            results["pending"] += 1
-            continue
+        # Handle moneyline bets — check game winner, not player stats
+        if bet["stat"] == "ML":
+            # Check if team won via scoreboard
+            sport_scoreboard = scoreboards.get(game_sport, {})
+            ml_result = check_moneyline(sport_scoreboard, team)
+            if ml_result is None:
+                results["pending"] += 1
+                continue
+            hit = ml_result
+        else:
+            # Look up player stats
+            player_stats = all_player_stats.get(bet["player"])
+            if player_stats is None:
+                if not quiet:
+                    print(f"  WARNING: {bet['player']} not found in box score"
+                          f" for {final_games[team]['name']}")
+                results["errors"].append(f"Player not found: {bet['player']}")
+                results["pending"] += 1
+                continue
 
-        # Determine W/L
-        hit = stat_val >= bet["target"]
+            stat_val = get_stat_value(player_stats, bet["stat"], sport=game_sport)
+            if stat_val is None:
+                results["errors"].append(
+                    f"Stat {bet['stat']} not found for {bet['player']}")
+                results["pending"] += 1
+                continue
+
+            # Determine W/L
+            hit = stat_val >= bet["target"]
 
         # Only settle straight bets (wager > 0 and no parlay_id) directly.
         # Parlay legs (wager = 0, parlay_id set) get settled with their parlay.
@@ -331,11 +309,21 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
             stat_label = "PRA" if bet["stat"] == "PRA" else bet["stat"]
             icon = "W" if hit else "L"
             if not quiet:
-                print(f"  {icon}: {bet['player']} {stat_val}/{bet['target']} {stat_label}"
-                      f" — ${bet['wager']:.2f} bet"
-                      f" -> ${payout:.2f} payout" if hit else
-                      f"  {icon}: {bet['player']} {stat_val}/{bet['target']} {stat_label}"
-                      f" — ${bet['wager']:.2f} lost")
+                if bet["stat"] == "ML":
+                    result_desc = "WIN" if hit else "LOSS"
+                    if hit:
+                        print(f"  {icon}: {bet['player']} ML {result_desc}"
+                              f" — ${bet['wager']:.2f} bet -> ${payout:.2f} payout")
+                    else:
+                        print(f"  {icon}: {bet['player']} ML {result_desc}"
+                              f" — ${bet['wager']:.2f} lost")
+                else:
+                    if hit:
+                        print(f"  {icon}: {bet['player']} {stat_val}/{bet['target']} {stat_label}"
+                              f" — ${bet['wager']:.2f} bet -> ${payout:.2f} payout")
+                    else:
+                        print(f"  {icon}: {bet['player']} {stat_val}/{bet['target']} {stat_label}"
+                              f" — ${bet['wager']:.2f} lost")
 
             if not dry_run:
                 settle_bet(bet_id, result_str, payout=payout)
@@ -371,11 +359,25 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
         # Evaluate each leg
         leg_results = []
         for leg in legs:
+            leg_team = espn_abbr(leg.get("team", ""))
+            leg_sport = leg.get("sport", "") or detect_sport(
+                leg_team, leg.get("stat", ""))
+            game_sport = final_games.get(leg_team, {}).get(
+                "sport", leg_sport or "nba")
+
+            if leg["stat"] == "ML":
+                # Moneyline leg — check game winner
+                sport_sb = scoreboards.get(game_sport, {})
+                ml_result = check_moneyline(sport_sb, leg_team)
+                leg_results.append(bool(ml_result))
+                continue
+
             player_stats = all_player_stats.get(leg["player"])
             if player_stats is None:
                 leg_results.append(False)
                 continue
-            stat_val = get_stat_value(player_stats, leg["stat"])
+            stat_val = get_stat_value(
+                player_stats, leg["stat"], sport=game_sport)
             if stat_val is None:
                 leg_results.append(False)
                 continue
@@ -409,10 +411,18 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
                 # Show which legs missed
                 details = []
                 for leg, hit in zip(legs, leg_results):
-                    ps = all_player_stats.get(leg["player"], {})
-                    sv = get_stat_value(ps, leg["stat"])
-                    mark = "HIT" if hit else "MISS"
-                    details.append(f"{leg['player']} {sv}/{leg['target']} {leg['stat']} ({mark})")
+                    if leg["stat"] == "ML":
+                        mark = "HIT" if hit else "MISS"
+                        details.append(f"{leg['player']} ML ({mark})")
+                    else:
+                        lt = espn_abbr(leg.get("team", ""))
+                        ls = leg.get("sport", "") or detect_sport(
+                            lt, leg.get("stat", ""))
+                        gs = final_games.get(lt, {}).get("sport", ls or "nba")
+                        ps = all_player_stats.get(leg["player"], {})
+                        sv = get_stat_value(ps, leg["stat"], sport=gs)
+                        mark = "HIT" if hit else "MISS"
+                        details.append(f"{leg['player']} {sv}/{leg['target']} {leg['stat']} ({mark})")
                 print(f"  {icon}: Parlay — ${parlay['wager']:.2f} lost")
                 for d in details:
                     print(f"       {d}")

@@ -129,8 +129,104 @@ MLB_TEAMS = {
     "washington nationals": "WSH", "nationals": "WSH",
 }
 
+NFL_TEAMS = {
+    "arizona cardinals": "ARI", "cardinals": "ARI",
+    "atlanta falcons": "ATL", "falcons": "ATL",
+    "baltimore ravens": "BAL", "ravens": "BAL",
+    "buffalo bills": "BUF", "bills": "BUF",
+    "carolina panthers": "CAR", "panthers": "CAR",
+    "chicago bears": "CHI", "bears": "CHI",
+    "cincinnati bengals": "CIN", "bengals": "CIN",
+    "cleveland browns": "CLE", "browns": "CLE",
+    "dallas cowboys": "DAL", "cowboys": "DAL",
+    "denver broncos": "DEN", "broncos": "DEN",
+    "detroit lions": "DET", "lions": "DET",
+    "green bay packers": "GB", "packers": "GB",
+    "houston texans": "HOU", "texans": "HOU",
+    "indianapolis colts": "IND", "colts": "IND",
+    "jacksonville jaguars": "JAX", "jaguars": "JAX",
+    "kansas city chiefs": "KC", "chiefs": "KC",
+    "las vegas raiders": "LV", "raiders": "LV",
+    "los angeles chargers": "LAC", "chargers": "LAC",
+    "los angeles rams": "LAR", "la rams": "LAR", "rams": "LAR",
+    "miami dolphins": "MIA", "dolphins": "MIA",
+    "minnesota vikings": "MIN", "vikings": "MIN",
+    "new england patriots": "NE", "patriots": "NE", "pats": "NE",
+    "new orleans saints": "NO", "saints": "NO",
+    "new york giants": "NYG",
+    "new york jets": "NYJ", "jets": "NYJ",
+    "philadelphia eagles": "PHI", "eagles": "PHI",
+    "pittsburgh steelers": "PIT", "steelers": "PIT",
+    "seattle seahawks": "SEA", "seahawks": "SEA",
+    "san francisco 49ers": "SF", "49ers": "SF", "niners": "SF",
+    "tampa bay buccaneers": "TB", "buccaneers": "TB", "bucs": "TB",
+    "tennessee titans": "TEN", "titans": "TEN",
+    "washington commanders": "WAS", "commanders": "WAS",
+}
+
+NHL_TEAMS = {
+    "anaheim ducks": "ANA", "ducks": "ANA",
+    "boston bruins": "BOS", "bruins": "BOS",
+    "buffalo sabres": "BUF", "sabres": "BUF",
+    "calgary flames": "CGY", "flames": "CGY",
+    "carolina hurricanes": "CAR", "hurricanes": "CAR",
+    "chicago blackhawks": "CHI", "blackhawks": "CHI",
+    "colorado avalanche": "COL", "avalanche": "COL",
+    "columbus blue jackets": "CBJ", "blue jackets": "CBJ",
+    "dallas stars": "DAL", "stars": "DAL",
+    "detroit red wings": "DET", "red wings": "DET",
+    "edmonton oilers": "EDM", "oilers": "EDM",
+    "florida panthers": "FLA",
+    "los angeles kings": "LA", "la kings": "LA",
+    "minnesota wild": "MIN", "wild": "MIN",
+    "montreal canadiens": "MTL", "canadiens": "MTL", "habs": "MTL",
+    "nashville predators": "NSH", "predators": "NSH", "preds": "NSH",
+    "new jersey devils": "NJ", "devils": "NJ",
+    "new york islanders": "NYI", "islanders": "NYI",
+    "new york rangers": "NYR",
+    "ottawa senators": "OTT", "senators": "OTT", "sens": "OTT",
+    "philadelphia flyers": "PHI", "flyers": "PHI",
+    "pittsburgh penguins": "PIT", "penguins": "PIT", "pens": "PIT",
+    "san jose sharks": "SJ", "sharks": "SJ",
+    "seattle kraken": "SEA", "kraken": "SEA",
+    "st. louis blues": "STL", "blues": "STL",
+    "tampa bay lightning": "TB", "lightning": "TB",
+    "toronto maple leafs": "TOR", "maple leafs": "TOR", "leafs": "TOR",
+    "utah hockey club": "UTA",
+    "vancouver canucks": "VAN", "canucks": "VAN",
+    "vegas golden knights": "VGK", "golden knights": "VGK",
+    "washington capitals": "WSH", "capitals": "WSH", "caps": "WSH",
+    "winnipeg jets": "WPG",
+}
+
 # Combined lookup for team detection in OCR text
-ALL_TEAMS = {**NBA_TEAMS, **MLB_TEAMS}
+ALL_TEAMS = {**NBA_TEAMS, **MLB_TEAMS, **NFL_TEAMS, **NHL_TEAMS}
+
+# Reverse lookup: abbreviation → sport
+_ABBR_TO_SPORT = {}
+for _name, _abbr in NBA_TEAMS.items():
+    _ABBR_TO_SPORT.setdefault(_abbr, "nba")
+for _name, _abbr in MLB_TEAMS.items():
+    _ABBR_TO_SPORT.setdefault(_abbr, "mlb")
+for _name, _abbr in NFL_TEAMS.items():
+    _ABBR_TO_SPORT.setdefault(_abbr, "nfl")
+for _name, _abbr in NHL_TEAMS.items():
+    _ABBR_TO_SPORT.setdefault(_abbr, "nhl")
+
+
+def detect_sport_from_team_name(team_name):
+    """Detect sport from a full team name found in OCR text."""
+    tl = team_name.lower()
+    if tl in NBA_TEAMS:
+        return "nba"
+    if tl in MLB_TEAMS:
+        return "mlb"
+    if tl in NFL_TEAMS:
+        return "nfl"
+    if tl in NHL_TEAMS:
+        return "nhl"
+    return ""
+
 
 # ── Stat type mapping (DraftKings labels → our codes) ───────
 
@@ -159,6 +255,22 @@ STAT_MAP = {
     "earned runs": "ER", "earned run": "ER",
     "innings pitched": "IP",
     "outs recorded": "OUTS", "pitcher outs": "OUTS",
+    # NFL
+    "passing yards": "PASS_YDS", "pass yards": "PASS_YDS",
+    "rushing yards": "RUSH_YDS", "rush yards": "RUSH_YDS",
+    "receiving yards": "REC_YDS", "rec yards": "REC_YDS",
+    "passing touchdowns": "PASS_TD", "pass tds": "PASS_TD",
+    "rushing touchdowns": "RUSH_TD",
+    "receiving touchdowns": "REC_TD",
+    "receptions": "REC", "reception": "REC",
+    "completions": "COMPLETIONS", "completion": "COMPLETIONS",
+    "interceptions": "INT", "interception": "INT",
+    "touchdowns": "TD",
+    # NHL
+    "goals": "G", "goal": "G",
+    "shots on goal": "SOG", "shots": "SOG",
+    "saves": "SV", "save": "SV",
+    "goals against": "GA",
 }
 
 
@@ -255,10 +367,10 @@ def find_teams_in_text(text):
 _player_team_cache = {}
 
 
-def lookup_player_team(player_name, sports=("basketball", "baseball")):
+def lookup_player_team(player_name, sports=("basketball", "baseball", "football", "hockey")):
     """Look up a player's current team via ESPN search API.
 
-    Searches across multiple sports (basketball and baseball by default).
+    Searches across all 4 major sports by default.
     Returns the ESPN team abbreviation (e.g., 'BOS') or '' if not found.
     Results are cached for the lifetime of the process.
     """
@@ -579,6 +691,21 @@ def parse_betslip(text):
                         bet["team"] = team
                         break
 
+    # ── Detect sport for each bet ────────────────────────────
+    # Use team abbreviation → sport lookup, then fall back to
+    # detected team names from OCR text.
+    detected_sport = ""
+    if found_teams:
+        for team_name in found_teams.values():
+            detected_sport = detect_sport_from_team_name(team_name)
+            if detected_sport:
+                break
+
+    for bet in bets:
+        if not bet.get("sport"):
+            abbr = bet.get("team", "")
+            bet["sport"] = _ABBR_TO_SPORT.get(abbr, detected_sport or "nba")
+
     return bets, parlays
 
 
@@ -626,11 +753,22 @@ def _write_to_db(bets, parlays):
             for leg_str in parlay.get("legs", []):
                 parts = leg_str.split(":")
                 if len(parts) == 3:
+                    # Find matching bet to get team and sport
+                    p_name, p_stat, p_target = parts[0], parts[1], int(parts[2])
+                    leg_team = ""
+                    leg_sport = "nba"
+                    for b in bets:
+                        if (b["player"] == p_name and b["stat"] == p_stat
+                                and b["target"] == p_target):
+                            leg_team = b.get("team", "")
+                            leg_sport = b.get("sport", "nba")
+                            break
                     legs.append({
-                        "player": parts[0],
-                        "stat": parts[1],
-                        "target": int(parts[2]),
-                        "team": "",
+                        "player": p_name,
+                        "stat": p_stat,
+                        "target": p_target,
+                        "team": leg_team,
+                        "sport": leg_sport,
                     })
             if legs:
                 _db_record_parlay(legs=legs, wager=parlay.get("wager", 0))
@@ -644,6 +782,7 @@ def _write_to_db(bets, parlays):
                     target=bet["target"],
                     wager=bet["wager"],
                     team=bet.get("team", ""),
+                    sport=bet.get("sport", "nba"),
                     odds=bet.get("odds") or 0,
                 )
 

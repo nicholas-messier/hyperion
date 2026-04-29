@@ -574,6 +574,7 @@ def sync_json():
             "stat": b["stat"],
             "target": b["target"],
             "wager": b["wager"],
+            "sport": b.get("sport", "nba"),
         })
         if b["parlay_id"]:
             parlay_legs.setdefault(b["parlay_id"], []).append(

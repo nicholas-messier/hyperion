@@ -6,7 +6,8 @@
 """
 game_monitor.py — Standalone live-tracker lifecycle manager.
 
-Checks the ESPN scoreboard for games involving teams with active bets.
+Checks ESPN scoreboards for ALL 4 major sports (NBA, NFL, MLB, NHL)
+for games involving teams with active bets.
 Starts live_tracker.py --daemon when a bet game goes live, and stops it
 when no tracked games remain in progress.
 
@@ -29,19 +30,28 @@ try:
 except ImportError:
     sys.exit(0)  # silently skip if requests not available
 
-SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
+# Import shared sport config
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                       / "sports-betting-advisor" / "scripts"))
+try:
+    from sport_config import (
+        get_all_scoreboard_urls, espn_abbr, detect_sport,
+    )
+except ImportError:
+    # Fallback if sport_config not available
+    def espn_abbr(team):
+        return {"NYK": "NY", "SAS": "SA", "GSW": "GS", "NOP": "NO",
+                "UTA": "UTAH"}.get(team, team)
+
+    def get_all_scoreboard_urls():
+        return {"nba": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"}
+
+    def detect_sport(team, stat=""):
+        return ""
 
 BETS_FILE = Path.home() / ".config" / "sports-bets" / "active_bets.json"
 TRACKER_SCRIPT = Path(__file__).resolve().parent.parent / "sports-betting-advisor" / "scripts" / "live_tracker.py"
 TRACKER_PID = Path.home() / ".cache" / "sports-bets" / "live_tracker.pid"
-
-TEAM_ALIASES = {
-    "NYK": "NY", "SAS": "SA", "GSW": "GS", "NOP": "NO", "UTA": "UTAH",
-}
-
-
-def espn_abbr(team):
-    return TEAM_ALIASES.get(team, team)
 
 
 def get_bet_teams():
@@ -56,22 +66,25 @@ def get_bet_teams():
 
 
 def any_game_live(bet_teams):
-    """Check ESPN scoreboard for IN_PROGRESS games involving bet teams."""
+    """Check ESPN scoreboards for all sports for IN_PROGRESS games involving bet teams."""
     if not bet_teams:
         return False
-    try:
-        resp = requests.get(SCOREBOARD_URL, timeout=10)
-        resp.raise_for_status()
-        for event in resp.json().get("events", []):
-            comp = event.get("competitions", [{}])[0]
-            status = comp.get("status", {}).get("type", {}).get("name", "")
-            if status != "STATUS_IN_PROGRESS":
-                continue
-            teams = {c.get("team", {}).get("abbreviation", "") for c in comp.get("competitors", [])}
-            if teams & bet_teams:
-                return True
-    except Exception:
-        pass
+    for sport, url in get_all_scoreboard_urls().items():
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            for event in resp.json().get("events", []):
+                comp = event.get("competitions", [{}])[0]
+                status = comp.get("status", {}).get("type", {}).get("name", "")
+                if status not in ("STATUS_IN_PROGRESS", "STATUS_HALFTIME",
+                                  "STATUS_END_PERIOD"):
+                    continue
+                teams = {c.get("team", {}).get("abbreviation", "")
+                         for c in comp.get("competitors", [])}
+                if teams & bet_teams:
+                    return True
+        except Exception:
+            pass
     return False
 
 

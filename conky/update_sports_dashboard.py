@@ -39,7 +39,19 @@ try:
 except ImportError:
     _HAS_DB = False
 
-# ESPN API endpoints
+# Import shared sport config
+try:
+    from sport_config import (
+        SPORTS, espn_abbr as _sc_espn_abbr, get_sport_urls,
+        get_all_scoreboard_urls, detect_sport,
+        extract_player_stats_from_summary, get_stat_value,
+        check_moneyline,
+    )
+    _HAS_SC = True
+except ImportError:
+    _HAS_SC = False
+
+# ESPN API endpoints (NBA used for playoffs section; others via sport_config)
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary"
 
@@ -77,6 +89,8 @@ TEAM_ALIASES = {
 
 def espn_abbr(team):
     """Normalize team abbreviation to ESPN format."""
+    if _HAS_SC:
+        return _sc_espn_abbr(team)
     return TEAM_ALIASES.get(team, team)
 
 
@@ -348,43 +362,85 @@ def get_scoreboard():
     return resp.json()
 
 
-def find_bet_games(scoreboard, bet_teams):
-    """Find live or final games that involve teams with active bets."""
+def get_all_scoreboards():
+    """Fetch scoreboards for all 4 major sports.
+
+    Returns {sport_key: scoreboard_json}.
+    """
+    scoreboards = {}
+    if _HAS_SC:
+        for sport, url in get_all_scoreboard_urls().items():
+            try:
+                resp = requests.get(url, timeout=10)
+                resp.raise_for_status()
+                scoreboards[sport] = resp.json()
+            except Exception:
+                pass
+    else:
+        # Fallback: only NBA
+        try:
+            scoreboards["nba"] = get_scoreboard()
+        except Exception:
+            pass
+    return scoreboards
+
+
+def find_bet_games(scoreboards_dict, bet_teams):
+    """Find live or final games across all sports that involve bet teams.
+
+    Accepts either a dict of {sport: scoreboard} or a single scoreboard dict
+    (backward compat).
+    """
+    # Detect if we got a single scoreboard (has "events" key) vs multi-sport dict
+    if "events" in scoreboards_dict:
+        scoreboards_dict = {"nba": scoreboards_dict}
+
     games = []
-    for event in scoreboard.get("events", []):
-        comp = event.get("competitions", [{}])[0]
-        status_name = comp.get("status", {}).get("type", {}).get("name", "")
-        if status_name not in TRACKABLE:
-            continue
+    for sport, scoreboard in scoreboards_dict.items():
+        for event in scoreboard.get("events", []):
+            comp = event.get("competitions", [{}])[0]
+            status_name = comp.get("status", {}).get("type", {}).get("name", "")
+            if status_name not in TRACKABLE:
+                continue
 
-        competitors = comp.get("competitors", [])
-        game_teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-        if not any(t in bet_teams for t in game_teams):
-            continue
+            competitors = comp.get("competitors", [])
+            game_teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
+            if not any(t in bet_teams for t in game_teams):
+                continue
 
-        scores = {}
-        for c in competitors:
-            abbr = c.get("team", {}).get("abbreviation", "???")
-            scores[abbr] = c.get("score", "0")
+            scores = {}
+            for c in competitors:
+                abbr = c.get("team", {}).get("abbreviation", "???")
+                scores[abbr] = c.get("score", "0")
 
-        detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
-        games.append({
-            "event_id": event["id"],
-            "short_name": event.get("shortName", ""),
-            "status": status_name,
-            "detail": detail,
-            "teams": game_teams,
-            "scores": scores,
-        })
+            detail = comp.get("status", {}).get("type", {}).get("shortDetail", "")
+            games.append({
+                "event_id": event["id"],
+                "short_name": event.get("shortName", ""),
+                "status": status_name,
+                "detail": detail,
+                "teams": game_teams,
+                "scores": scores,
+                "sport": sport,
+            })
     return games
 
 
-def get_player_stats(event_id):
+def fetch_player_stats(event_id, sport="nba"):
     """Fetch box score and extract all player stats for a game."""
-    resp = requests.get(SUMMARY_URL, params={"event": event_id}, timeout=10)
+    if _HAS_SC:
+        _, summary_url = get_sport_urls(sport)
+    else:
+        summary_url = SUMMARY_URL
+
+    resp = requests.get(summary_url, params={"event": event_id}, timeout=10)
     resp.raise_for_status()
     summary = resp.json()
 
+    if _HAS_SC:
+        return extract_player_stats_from_summary(summary, sport=sport)
+
+    # Fallback: NBA-only parsing
     stats = {}
     for team_block in summary.get("boxscore", {}).get("players", []):
         labels = team_block.get("statistics", [{}])[0].get("labels", STAT_LABELS)
@@ -412,7 +468,7 @@ def get_player_stats(event_id):
 
 # ── Bet evaluation ───────────────────────────────────────────
 
-def eval_bet(all_stats, player, stat, target):
+def eval_bet(all_stats, player, stat, target, sport="nba"):
     """Evaluate a bet against current player stats.
 
     Returns (current_value, status_string).
@@ -422,10 +478,15 @@ def eval_bet(all_stats, player, stat, target):
     if not p_stats:
         return None, "?"
 
-    if stat == "PRA":
+    if _HAS_SC:
+        cur = get_stat_value(p_stats, stat, sport=sport)
+    elif stat == "PRA":
         cur = p_stats.get("PTS", 0) + p_stats.get("REB", 0) + p_stats.get("AST", 0)
     else:
         cur = p_stats.get(stat, 0)
+
+    if cur is None:
+        cur = 0
 
     return cur, ("HIT" if cur >= target else "LIVE")
 
@@ -558,8 +619,10 @@ def print_bets_section(bets, parlays, game_stats, games):
             cur, status = None, "?"
             for g in games:
                 if team in g["teams"] and g["event_id"] in game_stats:
+                    game_sport = g.get("sport", "nba")
                     cur, status = eval_bet(game_stats[g["event_id"]],
-                                           player, stat, target)
+                                           player, stat, target,
+                                           sport=game_sport)
                     break
 
             if cur is None:
@@ -592,8 +655,14 @@ def print_bets_section(bets, parlays, game_stats, games):
                 label = "PRA" if p_stat == "PRA" else p_stat
                 # Check all live games for this player
                 cur, s = None, "?"
-                for stats in game_stats.values():
-                    cur, s = eval_bet(stats, p_name, p_stat, p_target)
+                for eid, stats in game_stats.items():
+                    # Determine sport for this game
+                    gs = "nba"
+                    for g in games:
+                        if g["event_id"] == eid:
+                            gs = g.get("sport", "nba")
+                            break
+                    cur, s = eval_bet(stats, p_name, p_stat, p_target, sport=gs)
                     if cur is not None:
                         break
                 if s == "HIT":
@@ -717,6 +786,8 @@ def main():
     series_list = None
     scoreboard = None
 
+    all_scoreboards = {}
+
     if requests is not None:
         # Fetch playoff series (may come from cache)
         try:
@@ -724,14 +795,14 @@ def main():
         except Exception:
             pass
 
-        # Always fetch today's fresh scoreboard so we can patch stale
-        # cache entries and track live bets with the same data.
+        # Fetch scoreboards for all sports (used for bet tracking)
         try:
-            scoreboard = get_scoreboard()
+            all_scoreboards = get_all_scoreboards()
+            scoreboard = all_scoreboards.get("nba")
         except Exception:
             pass
 
-        # Patch cached series with real-time scores from the scoreboard
+        # Patch cached series with real-time scores from the NBA scoreboard
         if series_list and scoreboard:
             patch_series_with_live_data(series_list, scoreboard)
 
@@ -744,15 +815,17 @@ def main():
     except Exception:
         bets, parlays = [], []
 
-    # If bets exist and scoreboard available, fetch live player stats
+    # If bets exist and scoreboards available, fetch live player stats
     game_stats = {}
     games = []
-    if bets and scoreboard is not None:
+    if bets and all_scoreboards:
         bet_teams = {espn_abbr(b["team"]) for b in bets if "team" in b}
-        games = find_bet_games(scoreboard, bet_teams)
+        games = find_bet_games(all_scoreboards, bet_teams)
         for game in games:
             try:
-                game_stats[game["event_id"]] = get_player_stats(game["event_id"])
+                game_sport = game.get("sport", "nba")
+                game_stats[game["event_id"]] = fetch_player_stats(
+                    game["event_id"], sport=game_sport)
             except Exception:
                 pass
 
