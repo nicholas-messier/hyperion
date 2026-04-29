@@ -61,7 +61,7 @@ INTAKE_DIR = Path.home() / ".cache" / "sports-bets" / "intake"
 SCRIPT_DIR = Path(__file__).resolve().parent
 CONFIG_ENV = SCRIPT_DIR.parent.parent / "config.env"
 
-# ── NBA team name → ESPN abbreviation ────────────────────────
+# ── Team name → abbreviation (NBA + MLB) ─────────────────────
 
 NBA_TEAMS = {
     "boston celtics": "BOS", "celtics": "BOS",
@@ -96,9 +96,46 @@ NBA_TEAMS = {
     "san antonio spurs": "SAS", "spurs": "SAS",
 }
 
+MLB_TEAMS = {
+    "arizona diamondbacks": "ARI", "diamondbacks": "ARI", "d-backs": "ARI",
+    "atlanta braves": "ATL", "braves": "ATL",
+    "baltimore orioles": "BAL", "orioles": "BAL",
+    "boston red sox": "BOS", "red sox": "BOS",
+    "chicago cubs": "CHC", "cubs": "CHC",
+    "chicago white sox": "CHW", "white sox": "CHW",
+    "cincinnati reds": "CIN", "reds": "CIN",
+    "cleveland guardians": "CLE", "guardians": "CLE",
+    "colorado rockies": "COL", "rockies": "COL",
+    "detroit tigers": "DET", "tigers": "DET",
+    "houston astros": "HOU", "astros": "HOU",
+    "kansas city royals": "KC", "royals": "KC",
+    "la angels": "LAA", "los angeles angels": "LAA", "angels": "LAA",
+    "la dodgers": "LAD", "los angeles dodgers": "LAD", "dodgers": "LAD",
+    "miami marlins": "MIA", "marlins": "MIA",
+    "milwaukee brewers": "MIL", "brewers": "MIL",
+    "minnesota twins": "MIN", "twins": "MIN",
+    "new york mets": "NYM", "mets": "NYM",
+    "new york yankees": "NYY", "yankees": "NYY",
+    "athletics": "ATH", "oakland athletics": "ATH",
+    "philadelphia phillies": "PHI", "phillies": "PHI",
+    "pittsburgh pirates": "PIT", "pirates": "PIT",
+    "san diego padres": "SD", "padres": "SD",
+    "san francisco giants": "SF", "giants": "SF",
+    "seattle mariners": "SEA", "mariners": "SEA",
+    "st. louis cardinals": "STL", "cardinals": "STL",
+    "tampa bay rays": "TB", "rays": "TB",
+    "texas rangers": "TEX", "rangers": "TEX",
+    "toronto blue jays": "TOR", "blue jays": "TOR",
+    "washington nationals": "WSH", "nationals": "WSH",
+}
+
+# Combined lookup for team detection in OCR text
+ALL_TEAMS = {**NBA_TEAMS, **MLB_TEAMS}
+
 # ── Stat type mapping (DraftKings labels → our codes) ───────
 
 STAT_MAP = {
+    # NBA
     "points": "PTS", "pts": "PTS", "point": "PTS",
     "rebounds": "REB", "reb": "REB", "rebound": "REB",
     "total rebounds": "REB",
@@ -110,6 +147,18 @@ STAT_MAP = {
     "made threes": "3PT", "three-pointers": "3PT",
     "pts + reb + ast": "PRA", "pra": "PRA",
     "points + rebounds + assists": "PRA",
+    # MLB
+    "strikeouts": "K", "strikeouts thrown": "K", "strikeout": "K",
+    "pitcher strikeouts": "K", "k": "K",
+    "hits": "H", "hit": "H", "hits allowed": "HA",
+    "total bases": "TB", "bases": "TB",
+    "home runs": "HR", "home run": "HR", "hrs": "HR",
+    "rbis": "RBI", "rbi": "RBI", "runs batted in": "RBI",
+    "runs": "R", "run": "R",
+    "walks": "BB", "walk": "BB",
+    "earned runs": "ER", "earned run": "ER",
+    "innings pitched": "IP",
+    "outs recorded": "OUTS", "pitcher outs": "OUTS",
 }
 
 
@@ -187,14 +236,14 @@ def ocr_image(image_path):
 # ── DraftKings bet slip parser ───────────────────────────────
 
 def find_teams_in_text(text):
-    """Find all NBA team abbreviations mentioned in the OCR text.
+    """Find all team abbreviations (NBA + MLB) mentioned in the OCR text.
 
     Uses word-boundary matching to avoid false positives like
     'DraftKings' matching 'kings' → SAC.
     """
     found = {}
     text_lower = text.lower()
-    for name, abbr in NBA_TEAMS.items():
+    for name, abbr in ALL_TEAMS.items():
         # Require word boundaries to avoid substring false positives
         pattern = r"(?<![a-z])" + re.escape(name) + r"(?![a-z])"
         if re.search(pattern, text_lower):
@@ -206,9 +255,10 @@ def find_teams_in_text(text):
 _player_team_cache = {}
 
 
-def lookup_player_team(player_name):
+def lookup_player_team(player_name, sports=("basketball", "baseball")):
     """Look up a player's current team via ESPN search API.
 
+    Searches across multiple sports (basketball and baseball by default).
     Returns the ESPN team abbreviation (e.g., 'BOS') or '' if not found.
     Results are cached for the lifetime of the process.
     """
@@ -218,22 +268,23 @@ def lookup_player_team(player_name):
     if _requests is None:
         return ""
 
-    try:
-        resp = _requests.get(
-            "https://site.api.espn.com/apis/common/v3/search",
-            params={"query": player_name, "limit": 1, "type": "player", "sport": "basketball"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        items = resp.json().get("items", [])
-        if items:
-            for rel in items[0].get("teamRelationships", []):
-                abbr = rel.get("core", {}).get("abbreviation", "")
-                if abbr:
-                    _player_team_cache[player_name] = abbr
-                    return abbr
-    except Exception:
-        pass
+    for sport in sports:
+        try:
+            resp = _requests.get(
+                "https://site.api.espn.com/apis/common/v3/search",
+                params={"query": player_name, "limit": 1, "type": "player", "sport": sport},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            if items:
+                for rel in items[0].get("teamRelationships", []):
+                    abbr = rel.get("core", {}).get("abbreviation", "")
+                    if abbr:
+                        _player_team_cache[player_name] = abbr
+                        return abbr
+        except Exception:
+            pass
 
     _player_team_cache[player_name] = ""
     return ""
@@ -354,6 +405,23 @@ def parse_betslip(text):
                 odds_value = val
                 break
 
+    # ── Strategy 0: Detect team moneyline legs ─────────────────
+    # Look for "TeamName" near "Moneyline" / "Money Line" / "ML" text.
+    # OCR may split "Moneyline" across lines (e.g., "Mone ne" / "yline").
+    moneyline_bets = []
+    full_text_lower = " ".join(cleaned).lower()
+    has_moneyline = bool(re.search(r"mone.{0,10}l[il]?ne|moneyline|money\s*line|\bml\b", full_text_lower))
+    if has_moneyline:
+        for team_name, team_abbr in ALL_TEAMS.items():
+            pattern = r"(?<![a-z])" + re.escape(team_name) + r"(?![a-z])"
+            if re.search(pattern, full_text_lower):
+                moneyline_bets.append({
+                    "player": team_name.title(), "team": team_abbr,
+                    "stat": "ML", "target": 0, "wager": 0,
+                    "odds": odds_value,
+                })
+                break  # Only one ML leg expected per slip
+
     # ── Strategy 1: DK share card format (N+ / Player Stat) ─
     # Collect targets (N+) and player+stat lines, pair them in order.
     targets = []        # (target_num, line_index)
@@ -368,7 +436,7 @@ def parse_betslip(text):
         if t_match and len(line) < 30:
             targets.append((int(t_match.group(1)), i))
 
-        # Player Name Stat: "Jaylen Brown Points"
+        # Player Name Stat: "Jaylen Brown Points" or "Tyler Glasnow Strikeouts Thrown"
         player, stat = _find_player_stat(line)
         if player and stat:
             player_stats.append((player, stat, i))
@@ -473,8 +541,12 @@ def parse_betslip(text):
             )
             if name_match:
                 candidate = name_match.group(1)
-                if candidate.lower() not in NBA_TEAMS and len(candidate) > 4:
+                if candidate.lower() not in ALL_TEAMS and len(candidate) > 4:
                     current_player = candidate
+
+    # ── Merge moneyline legs ─────────────────────────────────
+    if moneyline_bets:
+        bets = moneyline_bets + bets
 
     # ── Distribute wager ─────────────────────────────────────
     if wager and bets and not is_parlay:

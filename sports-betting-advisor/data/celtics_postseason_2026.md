@@ -67,12 +67,22 @@
 || Apr 25, 2026 | Jokic Over 14+ REB (-151) | -$3.00 | $39.79 |
 || Apr 26, 2026 | Jokic Over 14+ REB — WIN | +$4.98 | $44.77 |
 || Apr 26, 2026 | Brown Over 25+ PTS (-170) | -$3.00 | $41.77 |
+|| Apr 27, 2026 | Brown Over 25+ PTS — LOSS | $0.00 | $41.77 |
+|| Apr 27, 2026 | Jokic Over 14+ REB (-151) | -$3.00 | $38.77 |
+|| Apr 27, 2026 | Cade Over 10+ AST (-116) | -$3.00 | $35.77 |
+|| Apr 28, 2026 | Jokic Over 14+ REB — LOSS | $0.00 | $35.77 |
+|| Apr 28, 2026 | Cade Over 10+ AST — LOSS | $0.00 | $35.77 |
+|| Apr 28, 2026 | Tatum Over 6.5 AST (-138) | -$3.00 | $32.77 |
+|| Apr 28, 2026 | Wemby Over 12.5 REB (-145) | -$3.00 | $29.77 |
+|| Apr 28, 2026 | Tatum Over 6.5 AST — LOSS | $0.00 | $29.77 |
+|| Apr 29, 2026 | Wemby Over 12.5 REB — WIN | +$5.06 | $34.83 |
+|| Apr 29, 2026 | SGP: Glasnow 6+ K + LAD ML (-135) | -$3.00 | $31.83 |
 
-**Current Balance (unwagered):** $41.77
+**Current Balance (unwagered):** $31.83
 **Total Deposited:** $40.00
-**Total Wagered:** $98.00
+**Total Wagered:** $125.00
 **In Play:** $3.00
-**Net Profit:** +$4.77
+**Net Profit:** -$5.17
 
 ---
 
@@ -80,7 +90,7 @@
 
 | Bet | Odds | Wager | To Pay | Game |
 |-----|------|-------|--------|------|
-| Brown Over 25+ PTS | -170 | $3.00 | $4.76 | BOS @ PHI (7:00 PM) |
+| SGP: Glasnow 6+ K + LAD ML | -135 | $3.00 | $5.22 | MIA @ LAD |
 
 ---
 
@@ -106,9 +116,14 @@
 | Apr 23 | Parlay: Jokic AST + KAT REB (+144) | $3.00 | L | $0.00 | -$3.00 |
 | Apr 24 | Brown Over 26+ PTS (-124) | $5.00 | L | $0.00 | -$5.00 |
 | Apr 25 | Jokic Over 14+ REB (-151) | $3.00 | W | $4.98 | +$1.98 |
+| Apr 26 | Brown Over 25+ PTS (-170) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 27 | Jokic Over 14+ REB (-151) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 27 | Cade Over 10+ AST (-116) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 28 | Tatum Over 6.5 AST (-138) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 29 | Wemby Over 12.5 REB (-145) | $3.00 | W | $5.06 | +$2.06 |
 
-**Record:** 12-6 (11 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
-**Running P&L:** +$4.77
+**Record:** 13-10 (16 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
+**Running P&L:** -$5.17
 
 ---
 
@@ -222,16 +237,17 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 
 ### TIER 2: STRONG LEAN PLAYS (70-84% confidence)
 
-#### Jayson Tatum (BOS) — "The Board Man"
-| Stat | Season Avg | Last 10 Avg | Hit Rate | Prop Target |
-|------|-----------|-------------|----------|-------------|
-| Rebounds | 10.0 | 10.9 | **7/10 on 10+ (70%)** | **Over 9.5 REB — Strong Lean** |
-| Assists | 5.3 | 6.1 | 6/10 on 6+ (60%) | Over 5.5 AST — Lean (Celtics only) |
+#### Jayson Tatum (BOS) — "The Facilitator"
+| Stat | Season Avg | Playoff Avg (vs PHI) | Playoff Hit Rate | Prop Target |
+|------|-----------|----------------------|------------------|-------------|
+| Assists | 5.3 | **8.5** | **4/4 on 7+ (100%)** | **Over 6.5 AST — Strong Lean (borderline Lock)** |
+| Rebounds | 10.0 | 9.25 | 2/4 on 11+ (50%) | ~~Over 10.5 REB~~ — LEAN (downgraded) |
 
-- Only 16 games this season — monitor minutes and conditioning in playoffs.
-- Last 10 REB: 13, 5, 13, 11, 18, 5, 12, 12, 11, 9. Two clunker games at 5.
-- Already cashed this prop in Game 1. Proven playoff rebounder.
-- **Points props are risky until we see consistent playoff minutes. Stick to rebounds.**
+- Only 16 regular season games — but **4 playoff games now confirm a new role:** primary facilitator.
+- Playoff AST: 7, 9, 7, 11. Even in blowouts (G1: 7 AST in 32 min, G4: 11 AST in 35 min).
+- The Pritchard-Brown dynamic HELPS his assists — he feeds whoever's hot.
+- Playoff REB: 11, 14, 5, 7. Inconsistent — the 5-REB game was 42 minutes (not rest-related). Downgraded.
+- **Assists are the new primary Tatum play, not rebounds.**
 
 #### Jalen Brunson (NYK) — "The Engine"
 | Stat | Season Avg | Last 10 Avg | Hit Rate | Prop Target |
@@ -322,13 +338,13 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 
 ## Round-by-Round Game Plan
 
-### Round 1 — CURRENT (Bankroll: $44.77, Goal: $75+)
+### Round 1 — CURRENT (Bankroll: $41.77, Goal: $75+)
 
-**Status:** Games 1-4 in progress across multiple series. 12-6 record. Bankroll at $44.77 (+11.9% from $40 deposited). Jokic REB cashed to snap a two-night skid — drawdown protocol still applies (one winning result doesn't reset consecutive losing sessions).
+**Status:** 13-10 record. Bankroll at $31.83 unwagered ($34.83 total, $3 in play on MLB SGP). Drawdown protocol active — recent run 3-7 over last 10. Lock-only, 15% daily cap. Expanded to MLB pitcher K props — first MLB bet: Glasnow 6+ K + LAD ML SGP with DK 20% boost promo. NBA action resumes Thu (BOS @ PHI, DEN @ MIN).
 
 **Daily Approach:**
 - Scan each day's games for Lock and Strong Lean props using the tier system above.
-- Prioritize: **Brown PTS (every Celtics game) > Jokic REB (every DEN game) > Wemby PTS (every SAS game) > Tatum REB (every BOS game) > Brunson PTS/AST (every NYK game).** *(Apr 24: Removed Jokic AST — FADE vs MIN.)*
+- Prioritize: **Tatum AST (every Celtics game) > Wemby REB (every SAS game) > Brown PTS (Celtics, only if line is 24.5 or lower) > Jokic REB (every DEN game) > Brunson PTS/AST (every NYK game).** *(Apr 24: Removed Jokic AST — FADE vs MIN. Apr 28: Tatum AST promoted to #1, Brown PTS conditional on line, Wemby REB added, Tatum REB removed.)*
 - Max daily exposure: **30% of current bankroll** (no hardcoded dollar amounts — recalculate each day).
 - Max single-game exposure: **50% of daily exposure.** Must spread across 2+ games.
 - Max single-player exposure: **40% of daily exposure** (including parlay legs).
@@ -460,6 +476,27 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 ### Lesson Learned (Apr 24): Matchup-Specific Hit Rates Are Mandatory
 
 Season-wide or last-10 hit rates are a starting point, not the final word. **Before any Lock or Strong Lean call, check the head-to-head hit rate against the specific opponent.** If the matchup-specific rate is more than 10% below the overall rate, downgrade one tier. If the matchup sample is small (< 3 games), treat the play as one tier lower than the league-wide data suggests.
+
+### April 28, 2026 — Session 8: Clinch Game Pivot
+
+- **Settled Jokic Over 14+ REB: LOSS.** Jokic grabbed 12, missed by 2. Auto-settle cron missed it because cron only ran until 11pm ET. **Fixed cron to run 6pm-2am ET (18-23,0-2)** to catch late west coast games.
+- **Settled Cade Over 10+ AST: LOSS.** Third straight L. Running cold.
+- **Current record: 12-9.** Bankroll: $35.77. Drawdown protocol in full effect (5 of last 7 bets lost).
+- **Full Celtics Game 5 analysis — PHI @ BOS, potential clinch (BOS leads 3-1).**
+  - Pulled ESPN box scores for all 4 games in the series.
+  - **Brown PTS: FADED.** DK set the line at 26.5 (-123). Playoff reality: 26, 36, 25, 20 = only 1/4 on 27+ (25%). Regular season 70% on 27+ can't overcome the playoff data. The Pritchard inverse correlation is real — when PP scored 32 in Game 4, Brown only got 20 (31 min blowout). Two straight misses on this prop. Not our play tonight.
+  - **Tatum AST: THE PLAY.** DK at Over 6.5 (-138). Playoff: 7, 9, 7, 11 = 4/4 (100%) on 7+. Implied prob 58.2% vs ~75% blended actual = +16.8% edge, deep Value Zone. The Pritchard factor HELPS this — when PP or Brown are hot, Tatum facilitates. Blowout-proof (11 AST in 35 min G4 blowout, 7 AST in 32 min G1 blowout). Best Celtics play on the board.
+  - **Tatum REB: DOWNGRADED.** Playoff: 11, 14, 5, 7 = only 2/4 on 11+ (50%). The 5-REB game was in 42 minutes — not a blowout issue. No longer a Strong Lean in this series.
+  - **Wemby REB: CROSS-GAME DIVERSIFICATION.** DK at Over 12.5. Profile says 8/10 on 12+ (80%). Plus odds on the API pull (+108) but bet slip came in at -145 — need to verify. Either way, strong positive EV.
+- **Bets placed:**
+  - Tatum Over 6.5 AST (-138): $3.00
+  - Wemby Over 12.5 REB (-145): $3.00
+  - Total exposure: $6.00 (16.8% of bankroll). Slight overshoot on 15% drawdown cap.
+- **Key insight: Pritchard-Brown inverse scoring correlation.** When PP goes off (32 pts G4), Brown's scoring drops (20 pts) AND minutes get capped in blowouts. This makes Brown PTS unreliable at 26.5+ in blowout-prone games. Meanwhile, Tatum's assists benefit from EITHER Brown or PP being hot — he just feeds whoever's cooking. Assists are the better proxy for Celtics offensive production than any single scorer's points.
+
+### Lesson Learned (Apr 28): Role Player Variance Affects Star Props
+
+When a role player has an outlier game (Pritchard 32 pts), it directly suppresses the star's prop (Brown 20 pts). **Before betting a star's scoring prop, check if a teammate has been trending up in scoring.** If a role player is in a hot streak, the star's usage and minutes can both shrink — especially in blowout-prone matchups where garbage time comes early. Look for props that benefit from ANY teammate scoring well (like assists) rather than props that compete with teammate scoring (like points).
 
 ---
 

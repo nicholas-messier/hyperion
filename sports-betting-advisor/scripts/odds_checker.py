@@ -30,6 +30,7 @@ ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 SPORT_KEYS = {
     "nba": "basketball_nba",
     "nfl": "americanfootball_nfl",
+    "mlb": "baseball_mlb",
 }
 
 MARKET_TYPES = {
@@ -213,7 +214,12 @@ def fetch_player_props(api_key: str, sport: str) -> list:
 
     # Fetch player props for each event (note: may require paid API tier)
     all_props = []
-    prop_markets = "player_points,player_rebounds,player_assists,player_threes,player_pass_tds,player_rush_yds,player_reception_yds"
+    if sport.lower() == "mlb":
+        prop_markets = "pitcher_strikeouts,batter_total_bases,batter_hits,batter_home_runs,batter_rbis,pitcher_outs"
+    elif sport.lower() == "nfl":
+        prop_markets = "player_pass_tds,player_rush_yds,player_reception_yds,player_points"
+    else:
+        prop_markets = "player_points,player_rebounds,player_assists,player_threes"
 
     for event in events[:3]:  # Limit to first 3 events to save API calls
         event_id = event.get("id")
@@ -272,8 +278,8 @@ def main():
         description="Check DraftKings odds for NBA and NFL"
     )
     parser.add_argument(
-        "--sport", required=True, choices=["nba", "nfl"],
-        help="Sport to check (nba or nfl)",
+        "--sport", required=True, choices=["nba", "nfl", "mlb"],
+        help="Sport to check (nba, nfl, or mlb)",
     )
     parser.add_argument(
         "--market", "-m", default="all",

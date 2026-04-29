@@ -85,7 +85,7 @@ python3 scripts/nfl_stats.py --player "Patrick Mahomes" --season 2024 --cache-st
 **When to use:** Before making NFL player prop recommendations, checking matchup history, or evaluating recent performance. Data is automatically cached for 24 hours.
 
 ### 3. DraftKings Odds Checker (`scripts/odds_checker.py`)
-Fetches current DraftKings odds for NBA and NFL games. Requires a free API key from The Odds API.
+Fetches current DraftKings odds for NBA, NFL, and MLB games. Requires a free API key from The Odds API.
 
 **Setup (one-time):**
 ```bash
@@ -100,6 +100,9 @@ python3 scripts/odds_checker.py --sport nba
 
 # NFL spreads only
 python3 scripts/odds_checker.py --sport nfl --market spreads
+
+# MLB odds (moneylines, run lines, totals)
+python3 scripts/odds_checker.py --sport mlb
 
 # NBA moneylines only
 python3 scripts/odds_checker.py --sport nba --market h2h
@@ -173,9 +176,11 @@ python3 scripts/bet_intake.py --clear
 **How it works:**
 1. Image is preprocessed (scaled up, high-contrast B&W for dark-mode DK screenshots)
 2. Tesseract OCR extracts text (tries PSM 6, 4, 3 for best results)
-3. Parser handles two DraftKings formats:
+3. Parser handles multiple DraftKings formats:
    - **Share card format:** `25+` on one line, `Jaylen Brown Points` on the next
    - **Traditional format:** `Jaylen Brown Over 24.5 Points`
+   - **MLB props:** `6+` on one line, `Tyler Glasnow Strikeouts Thrown` on the next
+   - **Team moneyline legs:** Detects `LA Dodgers` + `Moneyline` (handles OCR noise)
 4. Detects parlays from "X-Pick Parlay" or "X-Leg Parlay" text
 5. Looks up player teams via ESPN search API if not found in OCR text
 6. Writes to SQLite DB (primary) and JSON file (backward compat)
@@ -275,9 +280,9 @@ python3 scripts/auto_settle.py --dry-run
 python3 scripts/auto_settle.py --quiet
 ```
 
-**Cron example (check every 15 minutes during game hours):**
+**Cron example (check every 15 minutes during game hours, 6pm-2am ET to catch late west coast games):**
 ```cron
-*/15 18-23 * * * cd /path/to/sports-betting-advisor && python3 scripts/auto_settle.py --quiet
+*/15 18-23,0-2 * * * cd /path/to/sports-betting-advisor && python3 scripts/auto_settle.py --quiet
 ```
 
 **How it works:**
@@ -390,14 +395,16 @@ iOS DraftKings Screenshot
 When the user asks for a pick or betting advice, follow this process:
 
 ### Step 1: Understand the Ask
-- What sport? NBA or NFL?
+- What sport? NBA, NFL, or MLB?
 - What type of bet? Spread, moneyline, total, player prop?
 - What game(s) or player(s)?
 
 ### Step 2: Pull the Data
 - Run the relevant stats script to get player/team performance data (cached for 24hrs automatically)
-- Run the odds checker to get current DraftKings lines
-- Look at recent trends (last 5-10 games), not just season averages
+- For **MLB pitcher stats**, use ESPN's gamelog API: `https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/{ID}/gamelog?season={YEAR}` — look up pitcher IDs via ESPN search API. Key stats: IP, K, ER, H, BB. Focus on K props (most predictable MLB prop).
+- For **MLB team batting stats** (K rate, AVG, OPS), use: `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/{ID}/statistics?season={YEAR}`
+- Run the odds checker (`--sport mlb`) to get current DraftKings lines
+- Look at recent trends (last 5-10 games/starts), not just season averages
 
 ### Step 2.5: Calculate Value
 - **Convert odds to implied probability** (see `base_strategy.md` for formulas)
