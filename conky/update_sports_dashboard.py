@@ -553,7 +553,7 @@ def print_bets_section(bets, parlays, game_stats, games):
         label = "PRA" if stat == "PRA" else stat
 
         # Check if this bet's game is live and we have stats
-        if team in live_teams and game_stats:
+        if team in live_teams and game_stats and stat != "ML":
             # Find stats from the matching game
             cur, status = None, "?"
             for g in games:
@@ -569,8 +569,11 @@ def print_bets_section(bets, parlays, game_stats, games):
             else:
                 print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {label} {cur}/{target}${{color}}")
         else:
-            # Static display — no live game
-            print(f"  $${wager:.0f} {short} {target}+ {label}")
+            # Static display — no live game (or moneyline bet)
+            if stat == "ML":
+                print(f"  $${wager:.0f} {short} {label}")
+            else:
+                print(f"  $${wager:.0f} {short} {target}+ {label}")
 
     # Parlay status — show as header + indented bulleted legs
     for parlay in parlays:
@@ -614,7 +617,10 @@ def print_bets_section(bets, parlays, game_stats, games):
                 else:
                     print(f"${{color #ffff00}}    \u25c6 {short} {label} {cur}/{target}${{color}}")
             else:
-                print(f"    \u00b7 {short} {target}+ {label}")
+                if label == "ML":
+                    print(f"    \u00b7 {short} {label}")
+                else:
+                    print(f"    \u00b7 {short} {target}+ {label}")
 
 
 # ── Section 3: Bankroll output ───────────────────────────────
