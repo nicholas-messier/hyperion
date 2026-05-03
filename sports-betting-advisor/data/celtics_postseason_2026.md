@@ -3,7 +3,7 @@
 **Started:** April 2026 — NBA Playoffs Round 1
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
-**Current Bankroll:** $26.83 ($0.00 in play)
+**Current Bankroll:** $27.66 ($0.00 in play)
 **Advisor:** Jay Trotter
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
 **Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, [bet type playbook](base_strategy.md#bet-type-playbook), hedging playbook)
@@ -87,28 +87,22 @@
 || May 2, 2026 | Maxey bet — CANCELLED (boost ineligible at -282) | +$2.00 | $24.83 |
 || May 2, 2026 | PHI +8.5 spread (-110 → boosted +119, 30% DK boost) | -$2.00 | $22.83 |
 || May 2, 2026 | BOS -8.5 spread (-105 → boosted +124, 30% DK boost) — ARB w/ PHI | -$2.00 | $20.83 |
+|| May 2, 2026 | Brown 20+ PTS — WIN (33 PTS) | +$2.45 | $23.28 |
+|| May 2, 2026 | BOS -8.5 spread — LOSS (BOS lost 100-109, did not cover) | $0.00 | $23.28 |
+|| May 2, 2026 | PHI +8.5 spread — WIN (PHI won outright) | +$4.38 | $27.66 |
 
-**Current Balance (unwagered):** $20.83
+**Current Balance:** $27.66
 **Total Deposited:** $40.00
 **Total Wagered:** $139.00
-**In Play:** $6.00
-**Net Profit:** -$13.17
+**In Play:** $0.00
+**Net Profit:** -$12.34
+**Series result:** PHI eliminates BOS 4-3 in Round 1. Brown's 33 PTS hit easy. PHI +8.5 cashed (won outright by 9). BOS -8.5 missed (got bounced).
 
 ---
 
 ## Active Bets
 
-| Player | Team | Stat | Target | Wager | Odds | Boost | Confidence |
-|--------|------|------|--------|-------|------|-------|------------|
-| Jaylen Brown | BOS | PTS | 20+ | $2.00 | -441 | None (ineligible) | Lock |
-| PHI 76ers | PHI | SPREAD | +8.5 | $2.00 | -110 → +119 | 30% applied ✓ | Strong Lean |
-| BOS Celtics | BOS | SPREAD | -8.5 | $2.00 | -105 → +124 | 30% applied ✓ | Strong Lean (ARB) |
-
-**Game:** PHI @ BOS — East 1st Round Game 7, 7:30 PM ET (May 2)
-**Total wagered:** $6.00 (22.4% of $26.83)
-**Effective at-risk capital:** $2.00 (only Brown — the spread plays are an ARB lock)
-**Spread ARB profit (guaranteed):** $0.38 minimum / $0.48 maximum (one side must win, no push possible on +/- 8.5)
-**Combined EV:** +$0.55-$0.65 (Brown raw +$0.17 + spread ARB lock $0.38-$0.48)
+_None — all Game 7 bets settled. Round 1 complete for our action._
 
 ---
 
@@ -142,9 +136,12 @@
 | Apr 29 | SGP: Glasnow 6+ K + LAD ML (-135) | $3.00 | L | $0.00 | -$3.00 |
 | Apr 29 | Derrick White First 3PT (+900 boost) | $3.00 | L | $0.00 | -$3.00 |
 | May 1 | Parlay: ORL +3.5 + TOR +4.5 (+267) | $2.00 | L | $0.00 | -$2.00 |
+| May 2 | Brown Over 20 PTS (-441) | $2.00 | W | $2.45 | +$0.45 |
+| May 2 | PHI +8.5 spread (boosted +119) | $2.00 | W | $4.38 | +$2.38 |
+| May 2 | BOS -8.5 spread (boosted +124) — ARB | $2.00 | L | $0.00 | -$2.00 |
 
-**Record:** 13-13 (17 straight bets, 7 parlays — 3 parlay W, 4 parlay L).
-**Running P&L:** -$13.17
+**Record:** 15-14 (22 straight bets — 12W/10L, 7 parlays — 3W/4L).
+**Running P&L:** -$12.34
 
 ---
 
