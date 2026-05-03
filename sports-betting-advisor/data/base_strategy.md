@@ -16,8 +16,9 @@ This document defines the universal betting strategy that applies across all spo
 4. [Odds Floor Rules](#odds-floor-rules)
 5. [Value Betting Framework](#value-betting-framework)
 6. [High-Value Bet Identification](#high-value-bet-identification)
-7. [Hedging Playbook](#hedging-playbook)
-8. [Sport-Specific Notes](#sport-specific-notes)
+7. [Bet Type Playbook](#bet-type-playbook)
+8. [Hedging Playbook](#hedging-playbook)
+9. [Sport-Specific Notes](#sport-specific-notes)
 
 ---
 
@@ -137,6 +138,33 @@ A high hit rate means nothing if the juice eats your profit. The books price kno
 | **Parlay super-juiced props** | When two Lock props are both past -200 individually, combine them. Target -150 or better combined. |
 | **Alternate lines** | Sometimes the alternate line (e.g., Over 12.5 REB instead of 10.5) offers better value due to odds misalignment. |
 
+### Why the Floor is -200 (Not Higher)
+
+We've been asked to extend the floor to -300 or -400. **The math says don't do it at our bankroll size.** The further past -200 you go, the steeper the cliff:
+
+| Odds | Implied % | $1 profit | 7-3 (10 bets, $3 each) | 8-2 | 9-1 |
+|------|-----------|-----------|------------------------|-----|-----|
+| -110 | 52.4% | $0.91 | **+$10.09** | +$15.82 | +$21.55 |
+| -150 | 60.0% | $0.67 | +$5.00 | +$10.00 | +$15.00 |
+| -200 | 66.7% | $0.50 | +$1.50 | +$6.00 | +$10.50 |
+| -300 | 75.0% | $0.33 | **-$2.00** | +$2.00 | +$6.00 |
+| -400 | 80.0% | $0.25 | -$3.75 | **$0.00 (BREAKEVEN)** | +$3.75 |
+| -500 | 83.3% | $0.20 | -$4.80 | -$1.20 | +$2.40 |
+
+**Key takeaways:**
+- At -400, going **8-2 (80%)** is literally **breakeven**. Vegas already prices the line at 80% — to profit, your hit rate must *exceed* the implied probability, not just match it.
+- One -400 loss requires **4 wins** to recoup. Catastrophic at small bankrolls.
+- Real example: Apr 20 we went **3-1 with super-juiced lines (-446, -710)** and netted **-$1.06**. A winning night turned into a loss because the juice ate the margins.
+
+### Lock Exception (Future — Not Yet Active)
+
+**When the bankroll grows past $200**, we may consider a Lock-only exception allowing odds up to **-300 max** for plays with all of:
+- Documented 90%+ hit rate over the last 10 games
+- Verified matchup-specific data (no league-wide averages alone)
+- Combined into a 2-leg parlay (no straight bets past -200, ever)
+
+Until then, **the -200 floor holds. Period.**
+
 ---
 
 ## Value Betting Framework
@@ -222,6 +250,69 @@ Sometimes the alternate line offers better value:
 - Standard: Over 10.5 REB at -250 (bad odds)
 - Alternate: Over 12.5 REB at -110 (much better odds, player averages 14 REB)
 - The alternate might actually be the smarter play
+
+---
+
+## Bet Type Playbook
+
+We don't bet every type the book offers. Each bet type has a specific role in the strategy. Use the right tool for the job.
+
+### Player Props (Primary)
+
+- **Our bread and butter.** We have the deepest tooling here (`nba_stats.py`, `nfl_stats.py`).
+- Most predictable, most data-rich, most exploitable inefficiencies.
+- All other bet types are supplementary — props are how we grind.
+
+### Spread Bets (Secondary)
+
+Spreads are the **second-best risk-adjusted bet type** because the juice is standardized at ~-110, which means the [Odds Floor](#odds-floor-rules) is never a problem.
+
+#### When to Bet a Spread
+- **NBA/NFL playoffs:** Series-level box scores give us real cover patterns. Track ATS performance per-team, per-venue.
+- **The road favorite trap:** Public lays heavy juice on the better team. When the road favorite is **0-2 ATS in the opponent's building this series**, fade them every time.
+- **The home dog rebound:** When the home underdog has **covered every home game this series**, take them again. Cover patterns persist within a series.
+- **Cross-game spread parlays:** Two spread legs at -110 each = combined odds around **+264**. This is the upside play of the spread world.
+
+#### Spread Tier System (Mirrors the Confidence Tiers)
+- **Lock spread:** Team has covered 3+ of last 4 games in the same context (home/away/series). Public bias creates value. Bet within sizing rules.
+- **Strong Lean spread:** Team has covered 2 of last 3, OR is 0-2 ATS in opponent's building this series (fade road favorite). Bet moderate size.
+- **Lean spread:** Mixed cover history but matchup data favors the side. Anchor team only.
+- **Fade spread:** No clear cover pattern. Don't bet.
+
+#### Spread Pitfalls (Avoid)
+- **Hooks matter.** A -3.5 vs -3 difference in NBA is huge — half a point can flip a winner to a push or loss. Always note the hook.
+- **Backdoor covers.** A garbage-time three can flip a side's cover. Late-game intentional fouls in a blowout can turn a 7-point game into a 12-point game in 90 seconds. Closeouts and blowouts amplify this.
+- **No advanced team metrics tooling yet.** We rely on series box scores and recent ATS records. If we can't pull the data, we don't bet the spread.
+- **MLB run lines (+/- 1.5)** and **NHL pucklines (+/- 1.5)** behave differently than NBA/NFL spreads — they're closer to alternate moneylines because of low scoring. The favorite -1.5 puckline is essentially asking "will the favorite win by 2+?" In NHL playoffs, half of games end in 1-goal margins. **Avoid puckline favorites.** Underdog pucklines (+1.5) at plus money can have value in tight matchups.
+
+#### Spread vs Moneyline Decision Tree
+- **Game has a clear better team, juice past -200 on ML:** Bet the spread instead. Standard juice, similar edge.
+- **Game is close on the ML (-150 or better):** Either is fine — pick the one with better data backing.
+- **Heavy ML favorite (-300+) IS a Lock:** Look at the alternate spread (e.g., -7.5 instead of -3.5) for a leveraged upside play.
+- **You like the underdog outright:** Take the ML, not the +spread. ML pays more if they win.
+
+### Moneyline Bets (Tertiary)
+
+- **Use sparingly.** ML's are inherently more variance-heavy than props with documented hit rates.
+- **Best ML spots:**
+  - Heavy ML favorite paired with a Lock spread (cross-bet hedge)
+  - Underdog ML when the data supports a true coin-flip pricing the dog at +130+
+  - Parlay leg combining 2-3 modest favorites for combined odds at +150 or better
+- **Worst ML spots:**
+  - Any straight ML past -200 (odds floor rule)
+  - "Better team" plays without matchup data
+  - Late-night MLB games where bullpen variance is unpredictable
+
+### Totals (Over/Under)
+
+- **Lowest priority bet type.** Heavily influenced by pace, weather, foul trouble — high variance.
+- Only bet totals when there's a clear systemic edge: starting pitcher matchup with extreme strikeout rates, NFL game in 30 mph wind, NBA team on B2B with backup point guard.
+- **Skip otherwise.** Use the bankroll for props and spreads.
+
+### Exotic Bets (First Basket, Anytime TD, Specials)
+
+- **Avoid almost universally.** Variance is the entire bet — no consistent edge available.
+- Exception: DK promotional boosts on a Lock-tier player (e.g., +900 boost on a player who scores in 90% of games). Even then, it's a low-conviction shot, not a core play.
 
 ---
 

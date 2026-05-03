@@ -390,13 +390,27 @@ def find_bet_games(scoreboards_dict, bet_teams):
 
     Accepts either a dict of {sport: scoreboard} or a single scoreboard dict
     (backward compat).
+
+    bet_teams may be either:
+      - a dict {sport: set(team_abbrs)} — only match games whose sport
+        is keyed and whose team is in the corresponding set. This is the
+        safe path that prevents e.g. NBA "BOS" matching MLB Red Sox games.
+      - a flat set (legacy) — match any sport with any of those teams.
     """
     # Detect if we got a single scoreboard (has "events" key) vs multi-sport dict
     if "events" in scoreboards_dict:
         scoreboards_dict = {"nba": scoreboards_dict}
 
+    # Backward-compat: a flat set means "any sport". Convert into a per-sport
+    # dict so the inner loop has a uniform shape.
+    if not isinstance(bet_teams, dict):
+        bet_teams = {sport: set(bet_teams) for sport in scoreboards_dict}
+
     games = []
     for sport, scoreboard in scoreboards_dict.items():
+        sport_teams = bet_teams.get(sport)
+        if not sport_teams:
+            continue
         for event in scoreboard.get("events", []):
             comp = event.get("competitions", [{}])[0]
             status_name = comp.get("status", {}).get("type", {}).get("name", "")
@@ -405,7 +419,7 @@ def find_bet_games(scoreboards_dict, bet_teams):
 
             competitors = comp.get("competitors", [])
             game_teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
-            if not any(t in bet_teams for t in game_teams):
+            if not any(t in sport_teams for t in game_teams):
                 continue
 
             scores = {}
@@ -489,6 +503,45 @@ def eval_bet(all_stats, player, stat, target, sport="nba"):
         cur = 0
 
     return cur, ("HIT" if cur >= target else "LIVE")
+
+
+def _live_spread_status(games, team_abbr, spread, sport=None):
+    """Evaluate a spread bet against the live game score.
+
+    Args:
+        games: List of game dicts from build_games_overview.
+        team_abbr: ESPN-normalized team abbreviation we bet on.
+        spread: Signed spread (e.g., +8.5 means underdog by 8.5,
+                -8.5 means favorite by 8.5).
+        sport: Optional sport key — if set, only consider games whose
+               sport matches. Prevents an NBA bet from matching an MLB
+               game with the same team abbreviation (e.g. BOS Celtics
+               vs BOS Red Sox).
+
+    Returns:
+        (margin, status) where margin is the team's point differential
+        (team_score - opp_score, can be negative) and status is
+        "COVER" / "NOCOVER" / None if game not found or not live.
+    """
+    for g in games:
+        if sport is not None and g.get("sport") != sport:
+            continue
+        if team_abbr not in g["teams"]:
+            continue
+        if g["status"] not in TRACKABLE:
+            return None, None
+        scores = g.get("scores", {})
+        team_score = int(scores.get(team_abbr, 0) or 0)
+        opp_scores = [int(s or 0) for t, s in scores.items() if t != team_abbr]
+        if not opp_scores:
+            return None, None
+        margin = team_score - max(opp_scores)
+        # Cover check: margin + spread must be > 0 (push if == 0).
+        # Examples:
+        #   PHI +8.5 covers when margin >= -8 (i.e., -8 + 8.5 > 0)
+        #   BOS -8.5 covers when margin >= 9 (i.e., 9 + (-8.5) > 0)
+        return margin, ("COVER" if margin + spread > 0 else "NOCOVER")
+    return None, None
 
 
 # ── Section 1: Playoff output ───────────────────────────────
@@ -598,11 +651,13 @@ def print_bets_section(bets, parlays, game_stats, games):
     total_wager += sum(p.get("wager", 0) for p in parlays)
     print(f"${{color #add8e6}}Active Bets${{color}}  $${total_wager:.0f} in play")
 
-    # Build a map of which games are live/final for quick lookup
-    live_teams = set()
+    # Build a per-sport map of which teams are in live/final games so a bet
+    # only matches a game from the same sport (NBA BOS != MLB BOS).
+    live_teams_by_sport = {}
     for g in games:
         if g["status"] in TRACKABLE:
-            live_teams.update(g["teams"])
+            sport_key = g.get("sport", "nba")
+            live_teams_by_sport.setdefault(sport_key, set()).update(g["teams"])
 
     for bet in straight_bets:
         player = bet["player"]
@@ -610,33 +665,59 @@ def print_bets_section(bets, parlays, game_stats, games):
         target = bet["target"]
         wager = bet.get("wager", 0)
         team = espn_abbr(bet.get("team", ""))
-        short = player.split()[-1] if " " in player else player
+        bet_sport = bet.get("sport", "nba")
+        sport_live_teams = live_teams_by_sport.get(bet_sport, set())
+        # Spread / ML bets display the team abbreviation; player props use last name.
+        if stat in ("SPREAD", "ML"):
+            short = team or (player.split()[-1] if " " in player else player)
+        else:
+            short = player.split()[-1] if " " in player else player
         label = "PRA" if stat == "PRA" else stat
 
-        # Check if this bet's game is live and we have stats
-        if team in live_teams and game_stats and stat != "ML":
-            # Find stats from the matching game
+        # Format target for display: "+8.5" / "-8.5" for spreads, "X+" for props.
+        if stat == "SPREAD":
+            target_disp = f"{target:+g}"  # e.g. "+8.5" or "-3.5"
+        elif stat == "ML":
+            target_disp = ""
+        else:
+            target_disp = f"{target:g}+"
+
+        # Check if this bet's game is live and we have game data (same sport only)
+        if team in sport_live_teams and stat != "ML" and stat != "SPREAD" and game_stats:
+            # Player prop — evaluate against live box score
             cur, status = None, "?"
             for g in games:
+                if g.get("sport", "nba") != bet_sport:
+                    continue
                 if team in g["teams"] and g["event_id"] in game_stats:
-                    game_sport = g.get("sport", "nba")
                     cur, status = eval_bet(game_stats[g["event_id"]],
                                            player, stat, target,
-                                           sport=game_sport)
+                                           sport=bet_sport)
                     break
 
             if cur is None:
-                print(f"${{color #888888}}  ? $${wager:.0f} {short} {target}+ {label}${{color}}")
+                print(f"${{color #888888}}  ? $${wager:.0f} {short} {target_disp} {label}${{color}}")
             elif status == "HIT":
-                print(f"${{color #00ff00}}  \u2713 $${wager:.0f} {short} {label} {cur}/{target}${{color}}")
+                print(f"${{color #00ff00}}  \u2713 $${wager:.0f} {short} {label} {cur}/{target:g}${{color}}")
             else:
-                print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {label} {cur}/{target}${{color}}")
+                print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {label} {cur}/{target:g}${{color}}")
+        elif team in sport_live_teams and stat == "SPREAD":
+            # Live spread tracking — compute current margin vs the line (same sport only)
+            margin, status = _live_spread_status(games, team, target, sport=bet_sport)
+            if margin is None:
+                print(f"${{color #888888}}  ? $${wager:.0f} {short} {target_disp} SPREAD${{color}}")
+            elif status == "COVER":
+                print(f"${{color #00ff00}}  \u2713 $${wager:.0f} {short} {target_disp} (margin {margin:+g})${{color}}")
+            else:
+                print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {target_disp} (margin {margin:+g})${{color}}")
         else:
-            # Static display — no live game (or moneyline bet)
+            # Static display — no live game (or pre-game ML/spread bet)
             if stat == "ML":
-                print(f"  $${wager:.0f} {short} {label}")
+                print(f"  $${wager:.0f} {short} ML")
+            elif stat == "SPREAD":
+                print(f"  $${wager:.0f} {short} {target_disp} SPREAD")
             else:
-                print(f"  $${wager:.0f} {short} {target}+ {label}")
+                print(f"  $${wager:.0f} {short} {target_disp} {label}")
 
     # Parlay status — show as header + indented bulleted legs
     for parlay in parlays:
@@ -819,8 +900,15 @@ def main():
     game_stats = {}
     games = []
     if bets and all_scoreboards:
-        bet_teams = {espn_abbr(b["team"]) for b in bets if "team" in b}
-        games = find_bet_games(all_scoreboards, bet_teams)
+        # Group bet teams by sport so we don't accidentally match e.g. an
+        # NBA "BOS" bet against a live MLB Red Sox game.
+        bet_teams_by_sport = {}
+        for b in bets:
+            if "team" not in b:
+                continue
+            sport = b.get("sport", "nba")
+            bet_teams_by_sport.setdefault(sport, set()).add(espn_abbr(b["team"]))
+        games = find_bet_games(all_scoreboards, bet_teams_by_sport)
         for game in games:
             try:
                 game_sport = game.get("sport", "nba")

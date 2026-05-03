@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 DraftKings Odds Checker
-Fetches current betting odds from DraftKings for NBA and NFL games.
+Fetches current betting odds from DraftKings for NBA, NFL, MLB, and NHL.
 Uses The Odds API (free tier: 500 requests/month).
 
 Setup:
@@ -12,6 +12,8 @@ Setup:
 Usage:
     python3 odds_checker.py --sport nba
     python3 odds_checker.py --sport nfl
+    python3 odds_checker.py --sport mlb
+    python3 odds_checker.py --sport nhl
     python3 odds_checker.py --sport nba --market spreads
     python3 odds_checker.py --sport nfl --market player_props
 """
@@ -31,6 +33,7 @@ SPORT_KEYS = {
     "nba": "basketball_nba",
     "nfl": "americanfootball_nfl",
     "mlb": "baseball_mlb",
+    "nhl": "icehockey_nhl",
 }
 
 MARKET_TYPES = {
@@ -218,7 +221,10 @@ def fetch_player_props(api_key: str, sport: str) -> list:
         prop_markets = "pitcher_strikeouts,batter_total_bases,batter_hits,batter_home_runs,batter_rbis,pitcher_outs"
     elif sport.lower() == "nfl":
         prop_markets = "player_pass_tds,player_rush_yds,player_reception_yds,player_points"
+    elif sport.lower() == "nhl":
+        prop_markets = "player_points,player_goals,player_assists,player_shots_on_goal,player_total_saves"
     else:
+        # NBA defaults
         prop_markets = "player_points,player_rebounds,player_assists,player_threes"
 
     for event in events[:3]:  # Limit to first 3 events to save API calls
@@ -275,11 +281,11 @@ def display_player_props(props_data: list, sport: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Check DraftKings odds for NBA and NFL"
+        description="Check DraftKings odds across NBA, NFL, MLB, and NHL"
     )
     parser.add_argument(
-        "--sport", required=True, choices=["nba", "nfl", "mlb"],
-        help="Sport to check (nba, nfl, or mlb)",
+        "--sport", required=True, choices=["nba", "nfl", "mlb", "nhl"],
+        help="Sport to check (nba, nfl, mlb, or nhl)",
     )
     parser.add_argument(
         "--market", "-m", default="all",

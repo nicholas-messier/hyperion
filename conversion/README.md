@@ -44,7 +44,10 @@ Batch converts video files (MKV, AVI, MP4, M4V, FLV, WMV) to MP4 (H.264/AAC).
 
 # Force a specific GPU encoder
 ./convert_mkv_to_mp4.sh --hwaccel=vaapi    # Intel GPU
-./convert_mkv_to_mp4.sh --hwaccel=nvenc    # NVIDIA GPU
+./convert_mkv_to_mp4.sh --hwaccel=nvenc    # NVIDIA GPU (full CUDA decode + NVENC encode)
+
+# HEVC NVENC for archival (saves ~30% over H.264; loses broad direct-play compat)
+./convert_mkv_to_mp4.sh --hwaccel=nvenc --codec=hevc
 
 # Convert 4 files simultaneously
 ./convert_mkv_to_mp4.sh --parallel=4
@@ -70,12 +73,15 @@ Batch converts video files (MKV, AVI, MP4, M4V, FLV, WMV) to MP4 (H.264/AAC).
 
 | Flag | Effect | Speed Gain |
 |------|--------|------------|
-| `--hwaccel[=TYPE]` | GPU-accelerated encoding (auto, vaapi, nvenc, qsv) | ~3-10x faster |
+| `--hwaccel[=TYPE]` | GPU-accelerated encoding (auto, vaapi, nvenc, qsv) | ~3-15x faster |
+| `--codec=h264\|hevc` | Output codec; default `h264`. `hevc` is NVENC-only or software libx265 | -30% bytes (HEVC) |
 | `--parallel=N` | Convert N files at the same time | ~Nx throughput |
 | `--preset=ultrafast` | Fastest x264 software preset (larger files) | ~4x vs medium |
 | `--crf=N` | Quality 0-51, higher = faster/smaller (default 18) | ~1.5-2x at CRF 23 |
 
 > **Note:** `--preset` only affects software encoding. When using `--hwaccel`, the GPU encoder handles its own speed/quality tradeoffs via `--crf`.
+
+> **NVENC pipeline:** When `--hwaccel=nvenc` is selected the script keeps frames in GPU memory end-to-end (CUDA decode → NVENC encode), avoiding a CPU round-trip. On a GTX 1050 Ti this typically gives 10-15× realtime for 1080p H.264 source. 10-bit HEVC sources are converted to 8-bit yuv420p via `scale_cuda` (still GPU-resident).
 
 **Preset options:** `ultrafast` | `superfast` | `veryfast` | `faster` | `fast` | `medium` (default) | `slow` | `slower` | `veryslow`
 

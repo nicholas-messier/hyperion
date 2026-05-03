@@ -434,6 +434,218 @@ def _find_player_stat(line):
     return None, None
 
 
+# ── Spread / run line / puck line detection ─────────────────
+# DK formats spread bets as:
+#   "<TeamName> +/-<num.5>"
+# followed by a "Spread" / "Run Line" / "Puck Line" keyword on the
+# same or next line. Examples we've seen in the wild:
+#   "PHI 76ers +8.5"          (NBA spread)
+#   "Boston Celtics -3.5"     (NBA spread)
+#   "ORL Magic +3.5"          (parlay leg)
+#   "PHI76ers+8.5"            (OCR collapsed spaces)
+#   "LAD Dodgers -1.5"        (MLB run line)
+#   "EDM Oilers +1.5"         (NHL puck line)
+
+SPREAD_KEYWORDS = re.compile(
+    r"\b(?:spread|run\s*line|runline|puck\s*line|puckline|point\s*spread)\b",
+    re.I,
+)
+
+# Loose pattern matching "<anything> +/-<digits.optional>" where the
+# spread number is reasonable (0.5 to 50.5).  Captures sign and value.
+_SPREAD_NUM_RE = re.compile(
+    r"([+\-~])\s*(\d{1,2}(?:\.\d)?)\b"
+)
+
+
+def _extract_spread_value(line):
+    """Return signed spread value from a line, or None.
+
+    Matches '+8.5' / '-3.5' / '+1.5' patterns. Treats '~' as '-' since
+    Tesseract often misreads a hyphen.
+    """
+    for m in _SPREAD_NUM_RE.finditer(line):
+        sign_raw = m.group(1)
+        try:
+            num = float(m.group(2))
+        except ValueError:
+            continue
+        # Skip values that are too large (likely odds, not spreads)
+        if num > 50.5 or num < 0.5:
+            continue
+        sign = -1 if sign_raw in ("-", "~") else 1
+        return sign * num
+    return None
+
+
+def _find_team_in_line(line):
+    """Find a team in the line by name. Handles OCR variants:
+        - 'Philadelphia 76ers'    full name
+        - '76ers'                 short name
+        - 'PHI 76ers'             abbreviation prefix
+        - 'PHI76ers'              OCR concatenated (no space)
+        - 'ORL Magic'             3-letter prefix + city/nick
+
+    Returns (team_name, team_abbr) or (None, None) if no match.
+    For ambiguous abbreviations (e.g., PHI = 76ers/Phillies/Eagles/Flyers)
+    the matched short name disambiguates which sport's team we use.
+    """
+    line_lower = line.lower()
+    line_squished = re.sub(r"\s+", "", line_lower)
+
+    # Sort longest-first so "philadelphia 76ers" matches before "76ers"
+    for team_name in sorted(ALL_TEAMS, key=len, reverse=True):
+        team_abbr = ALL_TEAMS[team_name]
+        # Match #1: full name with word boundaries (handles "Philadelphia 76ers")
+        pattern = r"(?<![a-z])" + re.escape(team_name) + r"(?![a-z])"
+        if re.search(pattern, line_lower):
+            return _canonical_full_name(team_name, team_abbr), team_abbr
+        # Match #2: full name collapsed (handles "Philadelphia76ers" OCR garble)
+        if " " in team_name:
+            collapsed = team_name.replace(" ", "")
+            if collapsed in line_squished:
+                return _canonical_full_name(team_name, team_abbr), team_abbr
+        # Match #3: abbreviation immediately followed by short name
+        # (handles "PHI76ers", "ORL Magic", "TOR Raptors", etc.)
+        # Only consider names that look like a city/nickname (no spaces, len >= 4)
+        if " " not in team_name and len(team_name) >= 4:
+            abbr_then_name = team_abbr.lower() + team_name
+            if abbr_then_name in line_squished:
+                return _canonical_full_name(team_name, team_abbr), team_abbr
+    return None, None
+
+
+def _smart_title(name):
+    """Title-case a team name while preserving tokens like '76ers'."""
+    parts = name.split()
+    out = []
+    for p in parts:
+        # Keep tokens with digits as-is (e.g., "76ers", "49ers")
+        if any(c.isdigit() for c in p):
+            out.append(p)
+        else:
+            out.append(p.capitalize())
+    return " ".join(out)
+
+
+def _canonical_full_name(short_or_full_name, team_abbr):
+    """Return the most readable full team name for the matched team.
+
+    Disambiguates abbreviations shared across sports (PHI, ATL, etc.) by
+    using the matched name's sport — so '76ers' resolves to
+    'Philadelphia 76ers', not 'Philadelphia Phillies'.
+    """
+    # If we already matched a multi-word name, use it directly.
+    if " " in short_or_full_name:
+        return _smart_title(short_or_full_name)
+
+    # Detect sport from the matched name to disambiguate shared abbreviations
+    sport_lookup = {
+        "nba": NBA_TEAMS, "mlb": MLB_TEAMS,
+        "nfl": NFL_TEAMS, "nhl": NHL_TEAMS,
+    }
+    detected = detect_sport_from_team_name(short_or_full_name)
+    if detected:
+        # Find the spaced full-name for this abbr in the correct sport
+        for full_name, abbr in sport_lookup[detected].items():
+            if abbr == team_abbr and " " in full_name:
+                return _smart_title(full_name)
+
+    # Fallback: any spaced full-name with this abbr (across all sports)
+    candidates = [n for n, a in ALL_TEAMS.items() if a == team_abbr and " " in n]
+    return _smart_title(max(candidates, key=len) if candidates else short_or_full_name)
+
+
+def _find_spread_bets(cleaned, default_odds=None):
+    """Detect spread / run line / puck line bets in OCR text.
+
+    Looks for the 'Spread' (or related) keyword as an anchor, then
+    pulls the team + signed number from the same line OR the line
+    immediately above. Each detected bet gets its own odds if found
+    nearby, otherwise falls back to default_odds.
+
+    Returns a list of bet dicts with stat='SPREAD', target=signed value.
+    """
+    spread_bets = []
+    seen = set()  # (team_abbr, target) to dedupe across same/prev line matches
+
+    for i, line in enumerate(cleaned):
+        if not SPREAD_KEYWORDS.search(line):
+            continue
+
+        # Search this line and the previous one (DK often puts the
+        # spread number above the "Spread" label on a separate line).
+        candidates = [line]
+        if i > 0:
+            candidates.insert(0, cleaned[i - 1])
+
+        for cand in candidates:
+            spread_val = _extract_spread_value(cand)
+            if spread_val is None:
+                continue
+            team_name, team_abbr = _find_team_in_line(cand)
+            if not team_abbr:
+                continue
+            key = (team_abbr, spread_val)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            # Try to find leg-specific odds AFTER the spread number.
+            # American odds for spreads are typically -110 to +200.
+            # OCR may render '-' as '~' or 'N' (e.g., '~108' or 'N110').
+            # default_odds is the slip-level fallback — caller passes
+            # None for parlays (where it'd be the combined parlay odds,
+            # not the leg odds) and passes the bet odds for singles.
+            odds_value = _extract_spread_leg_odds(cand, spread_val) or default_odds
+
+            spread_bets.append({
+                "player": team_name,
+                "team": team_abbr,
+                "stat": "SPREAD",
+                "target": spread_val,
+                "wager": 0,
+                "odds": odds_value,
+            })
+            break  # Only one bet per "Spread" anchor
+
+    return spread_bets
+
+
+def _extract_spread_leg_odds(line, spread_val):
+    """Find the odds value for a spread bet leg.
+
+    DK formats lines like 'ORL Magic +3.5 -108' where the odds (-108)
+    follow the spread (+3.5). OCR may garble '-' as '~' or 'N'.
+    Returns signed integer odds or None.
+    """
+    # Locate the spread value in the line so we only look AFTER it
+    spread_str_int = str(int(abs(spread_val)))
+    spread_str_dec = f"{abs(spread_val):.1f}"  # e.g., "3.5" or "8.5"
+    after_idx = -1
+    for needle in (spread_str_dec, spread_str_int + ".5", spread_str_int):
+        idx = line.find(needle)
+        if idx >= 0:
+            after_idx = idx + len(needle)
+            break
+    suffix = line[after_idx:] if after_idx >= 0 else line
+
+    # Match patterns: -108 / +119 / ~108 / N110 / -110 etc.
+    # 100-999 numeric range filters out random 2-digit noise.
+    odds_re = re.compile(r"(?<!\d)(?P<sign>[+\-~Nn])\s*(?P<num>\d{2,3})(?!\d)")
+    for m in odds_re.finditer(suffix):
+        try:
+            num = int(m.group("num"))
+            if not (100 <= num <= 999):
+                continue
+        except ValueError:
+            continue
+        sign_raw = m.group("sign")
+        sign = -1 if sign_raw in ("-", "~", "N", "n") else 1
+        return sign * num
+    return None
+
+
 def _score_ocr_text(text):
     """Score OCR text by how many bet-relevant components it contains.
 
@@ -459,6 +671,11 @@ def _score_ocr_text(text):
         # Wager amount
         if re.search(r"[Ww]ager.*\$\d+", line):
             score += 2
+        # Spread bet patterns
+        if SPREAD_KEYWORDS.search(cleaned):
+            score += 2
+        if _extract_spread_value(cleaned) is not None:
+            score += 1
     return score
 
 
@@ -517,13 +734,25 @@ def parse_betslip(text):
                 odds_value = val
                 break
 
-    # ── Strategy 0: Detect team moneyline legs ─────────────────
+    # ── Strategy 0a: Detect spread / run line / puck line bets ─
+    # Look for "Spread"/"Run Line"/"Puck Line" keyword near a team
+    # and signed spread number (e.g., "PHI 76ers +8.5 / Spread").
+    # For parlays, don't pass default_odds since that'd be the parlay's
+    # combined odds, not the leg's odds. Each leg's odds must come
+    # from inline OCR or stay None for manual review.
+    spread_default_odds = None if is_parlay else odds_value
+    spread_bets = _find_spread_bets(cleaned, default_odds=spread_default_odds)
+
+    # ── Strategy 0b: Detect team moneyline legs ────────────────
     # Look for "TeamName" near "Moneyline" / "Money Line" / "ML" text.
     # OCR may split "Moneyline" across lines (e.g., "Mone ne" / "yline").
+    # Skip ML detection if we already have spread bets — DK rarely
+    # mixes spread + ML for the same team in one slip, and the parser
+    # might pick up "ML" as a substring of OCR noise.
     moneyline_bets = []
     full_text_lower = " ".join(cleaned).lower()
-    has_moneyline = bool(re.search(r"mone.{0,10}l[il]?ne|moneyline|money\s*line|\bml\b", full_text_lower))
-    if has_moneyline:
+    has_moneyline = bool(re.search(r"mone.{0,10}l[il]?ne|moneyline|money\s*line", full_text_lower))
+    if has_moneyline and not spread_bets:
         for team_name, team_abbr in ALL_TEAMS.items():
             pattern = r"(?<![a-z])" + re.escape(team_name) + r"(?![a-z])"
             if re.search(pattern, full_text_lower):
@@ -656,7 +885,9 @@ def parse_betslip(text):
                 if candidate.lower() not in ALL_TEAMS and len(candidate) > 4:
                     current_player = candidate
 
-    # ── Merge moneyline legs ─────────────────────────────────
+    # ── Merge spread + moneyline legs ────────────────────────
+    if spread_bets:
+        bets = spread_bets + bets
     if moneyline_bets:
         bets = moneyline_bets + bets
 

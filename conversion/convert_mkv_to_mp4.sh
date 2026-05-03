@@ -14,6 +14,7 @@
 #   ./convert_mkv_to_mp4.sh --hwaccel              # Auto-detect GPU encoder
 #   ./convert_mkv_to_mp4.sh --hwaccel=vaapi        # Force VAAPI (Intel)
 #   ./convert_mkv_to_mp4.sh --hwaccel=nvenc        # Force NVENC (NVIDIA)
+#   ./convert_mkv_to_mp4.sh --hwaccel=nvenc --codec=hevc  # NVENC + HEVC archival
 #   ./convert_mkv_to_mp4.sh --parallel=4           # Process 4 files at once
 #   ./convert_mkv_to_mp4.sh --crf=23               # Lower quality, faster encode
 #   ./convert_mkv_to_mp4.sh --plan                 # Generate ~12hr chunk files (default)
@@ -24,6 +25,11 @@
 # Speed options (combine for maximum throughput):
 #   --preset=ultrafast   Fastest x264 preset (big files, ~4x faster than medium)
 #   --hwaccel[=TYPE]     GPU-accelerated encoding (3-10x faster than software)
+#                        NVENC path uses full CUDA decode -> NVENC encode pipeline
+#                        (no DRAM bounce); typical 1080p ~10-15x realtime on a 1050 Ti.
+#   --codec=h264|hevc    Output video codec (default: h264). hevc only valid with
+#                        --hwaccel=nvenc; saves ~30% bytes for archival but loses
+#                        broad direct-play compatibility.
 #   --parallel=N         Convert N files simultaneously (great with many cores)
 #   --crf=N              Quality 0-51 (default 18; 23 is faster, still good quality)
 #
@@ -52,9 +58,17 @@ CHUNK_NUM=0
 HWACCEL=""
 PARALLEL=1
 CRF=23
+CODEC="h264"
 
 for arg in "$@"; do
     case $arg in
+        --codec=*)
+            CODEC="${arg#--codec=}"
+            case "$CODEC" in
+                h264|hevc) ;;
+                *) echo "Invalid codec '$CODEC'. Use: h264 or hevc."; exit 1 ;;
+            esac
+            ;;
         --preset=*)
             PRESET="${arg#--preset=}"
             case "$PRESET" in
@@ -105,7 +119,7 @@ for arg in "$@"; do
             ;;
         *)
             echo "Unknown argument: $arg"
-            echo "Usage: $0 [--preset=PRESET] [--hwaccel[=TYPE]] [--parallel=N] [--crf=N] [--plan] [--hours=N] [--chunk=N]"
+            echo "Usage: $0 [--preset=PRESET] [--hwaccel[=TYPE]] [--codec=h264|hevc] [--parallel=N] [--crf=N] [--plan] [--hours=N] [--chunk=N]"
             exit 1
             ;;
     esac
@@ -141,6 +155,7 @@ print_header() {
     echo -e "${BOLD}${CYAN}=========================================${NC}"
     echo -e "  Preset : ${BOLD}$PRESET${NC}"
     echo -e "  CRF    : ${BOLD}$CRF${NC}"
+    echo -e "  Codec  : ${BOLD}$CODEC${NC}"
     if [[ -n "$HWACCEL_DEVICE" ]]; then
         echo -e "  HW Acc : ${BOLD}$HWACCEL_DEVICE${NC}"
     elif [[ -n "$HWACCEL" ]]; then
@@ -221,14 +236,16 @@ detect_hwaccel() {
         [[ -e "$dev" ]] && VAAPI_RENDER_DEVICE="$dev" && break
     done
 
+    # NOTE: -nostdin keeps ffmpeg from consuming bytes from our caller's stdin
+    # while probing — without it, the prompts that follow may receive partial input.
     try_nvenc() {
         nvidia-smi &>/dev/null || return 1
-        ffmpeg -hide_banner -f lavfi -i "nullsrc=s=256x256:d=0.1" \
+        ffmpeg -nostdin -hide_banner -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -c:v h264_nvenc -f null - 2>/dev/null
     }
 
     try_qsv() {
-        ffmpeg -hide_banner -init_hw_device qsv=hw \
+        ffmpeg -nostdin -hide_banner -init_hw_device qsv=hw \
             -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -vf 'format=nv12,hwupload=extra_hw_frames=64' \
             -c:v h264_qsv -f null - 2>/dev/null
@@ -236,7 +253,7 @@ detect_hwaccel() {
 
     try_vaapi() {
         [[ -z "$VAAPI_RENDER_DEVICE" ]] && return 1
-        ffmpeg -hide_banner -init_hw_device "vaapi=va:${VAAPI_RENDER_DEVICE}" \
+        ffmpeg -nostdin -hide_banner -init_hw_device "vaapi=va:${VAAPI_RENDER_DEVICE}" \
             -filter_hw_device va \
             -f lavfi -i "nullsrc=s=256x256:d=0.1" \
             -vf 'format=nv12,hwupload' \
@@ -302,19 +319,15 @@ build_ffmpeg_args() {
     fi
 
     # Video encoding strategy
+    # Stream-copy only when the source already matches the target codec & bit depth.
     local needs_encode=false
-    case "$video_codec" in
-        h264)
-            if (( bit_depth == 10 )); then
-                needs_encode=true
-            else
-                FFMPEG_ARGS+=(-c:v copy)
-            fi
-            ;;
-        *)
-            needs_encode=true
-            ;;
-    esac
+    if [[ "$CODEC" == "h264" && "$video_codec" == "h264" && "$bit_depth" == "8" ]]; then
+        FFMPEG_ARGS+=(-c:v copy)
+    elif [[ "$CODEC" == "hevc" && "$video_codec" == "hevc" && "$bit_depth" == "8" ]]; then
+        FFMPEG_ARGS+=(-c:v copy)
+    else
+        needs_encode=true
+    fi
 
     if $needs_encode; then
         case "$HWACCEL_DEVICE" in
@@ -330,10 +343,19 @@ build_ffmpeg_args() {
                 FFMPEG_ARGS+=(-qp "$vaapi_qp")
                 ;;
             nvenc)
-                FFMPEG_ARGS+=(-c:v h264_nvenc -preset p4 -tune hq -rc constqp)
-                # NVENC quality: -cq maps to CRF (similar scale)
-                FFMPEG_ARGS+=(-qp "$CRF")
-                FFMPEG_ARGS+=(-profile:v high -level "$h264_level")
+                # Full CUDA decode -> NVENC encode pipeline keeps frames in GPU memory
+                # (no DRAM bounce) — typical 1080p ~10-15x realtime on a GTX 1050 Ti.
+                # The -hwaccel/-hwaccel_output_format markers are extracted to pre-input
+                # args by convert_file/convert_file_parallel.
+                FFMPEG_ARGS+=(-hwaccel cuda -hwaccel_output_format cuda)
+                if [[ "$CODEC" == "hevc" ]]; then
+                    FFMPEG_ARGS+=(-c:v hevc_nvenc -preset p4 -tune hq -rc constqp -qp "$CRF")
+                    # HEVC NVENC profile: 'main' for 8-bit yuv420p
+                    FFMPEG_ARGS+=(-profile:v main)
+                else
+                    FFMPEG_ARGS+=(-c:v h264_nvenc -preset p4 -tune hq -rc constqp -qp "$CRF")
+                    FFMPEG_ARGS+=(-profile:v high -level "$h264_level")
+                fi
                 ;;
             qsv)
                 FFMPEG_ARGS+=(-init_hw_device qsv=hw -filter_hw_device hw)
@@ -342,15 +364,22 @@ build_ffmpeg_args() {
                 FFMPEG_ARGS+=(-global_quality "$qsv_q")
                 ;;
             *)
-                # Software encoding with libx264
-                FFMPEG_ARGS+=(-c:v libx264 -crf "$CRF" -preset "$PRESET" -profile:v high -level "$h264_level")
+                # Software encoding with libx264 (or libx265 if --codec=hevc)
+                if [[ "$CODEC" == "hevc" ]]; then
+                    FFMPEG_ARGS+=(-c:v libx265 -crf "$CRF" -preset "$PRESET")
+                else
+                    FFMPEG_ARGS+=(-c:v libx264 -crf "$CRF" -preset "$PRESET" -profile:v high -level "$h264_level")
+                fi
                 ;;
         esac
 
-        # Pixel format: force 8-bit output for 10-bit sources (software & non-VAAPI HW)
+        # Pixel format: force 8-bit output for 10-bit sources.
+        # NVENC w/ CUDA decode: insert scale_cuda to convert 10-bit (p010le) -> nv12
+        # before reaching the encoder. This is GPU-side, no DRAM bounce.
         if (( bit_depth == 10 )); then
             case "$HWACCEL_DEVICE" in
                 vaapi|qsv) ;; # handled by hwupload filter
+                nvenc)     FFMPEG_ARGS+=(-vf "scale_cuda=format=nv12") ;;
                 *)         FFMPEG_ARGS+=(-pix_fmt yuv420p) ;;
             esac
         fi
@@ -413,14 +442,16 @@ convert_file() {
             ;;
     esac
 
-    # Extract init_hw_device args and put them before -i
+    # Extract pre-input args (HW init / decode hints) and put them before -i.
+    # -init_hw_device / -filter_hw_device : VAAPI/QSV hwaccel device setup (take a value)
+    # -hwaccel / -hwaccel_output_format   : CUDA decode hints for NVENC pipeline (take a value)
     local pre_input_args=()
     local post_input_args=()
     local skip_next=false
     for (( ai=0; ai<${#FFMPEG_ARGS[@]}; ai++ )); do
         if $skip_next; then skip_next=false; continue; fi
         case "${FFMPEG_ARGS[$ai]}" in
-            -init_hw_device|-filter_hw_device)
+            -init_hw_device|-filter_hw_device|-hwaccel|-hwaccel_output_format)
                 pre_input_args+=("${FFMPEG_ARGS[$ai]}" "${FFMPEG_ARGS[$((ai+1))]}")
                 skip_next=true
                 ;;
@@ -502,13 +533,16 @@ convert_file_parallel() {
             ;;
     esac
 
+    # Extract pre-input args (HW init / decode hints) and put them before -i.
+    # -init_hw_device / -filter_hw_device : VAAPI/QSV hwaccel device setup (take a value)
+    # -hwaccel / -hwaccel_output_format   : CUDA decode hints for NVENC pipeline (take a value)
     local pre_input_args=()
     local post_input_args=()
     local skip_next=false
     for (( ai=0; ai<${#FFMPEG_ARGS[@]}; ai++ )); do
         if $skip_next; then skip_next=false; continue; fi
         case "${FFMPEG_ARGS[$ai]}" in
-            -init_hw_device|-filter_hw_device)
+            -init_hw_device|-filter_hw_device|-hwaccel|-hwaccel_output_format)
                 pre_input_args+=("${FFMPEG_ARGS[$ai]}" "${FFMPEG_ARGS[$((ai+1))]}")
                 skip_next=true
                 ;;
@@ -748,6 +782,7 @@ run_plan_mode() {
     # Build recommended command based on current flags
     local rec_flags="--preset=$PRESET"
     [[ -n "$HWACCEL_DEVICE" ]] && rec_flags+=" --hwaccel=$HWACCEL_DEVICE"
+    [[ "$CODEC" != "h264" ]] && rec_flags+=" --codec=$CODEC"
     (( PARALLEL > 1 )) && rec_flags+=" --parallel=$PARALLEL"
     (( CRF != 18 )) && rec_flags+=" --crf=$CRF"
 
@@ -777,6 +812,20 @@ if [[ -n "$HWACCEL" ]]; then
     detect_hwaccel "$HWACCEL"
     # Clear request flag if no device was found (so header doesn't show "detecting...")
     [[ -z "$HWACCEL_DEVICE" ]] && HWACCEL=""
+fi
+
+# ── Codec/HW compatibility checks ────────────────────────────
+# HEVC NVENC is only on NVIDIA. VAAPI/QSV HEVC is possible but not
+# wired up in this script; require nvenc or software for hevc output.
+if [[ "$CODEC" == "hevc" ]]; then
+    case "${HWACCEL_DEVICE:-software}" in
+        nvenc|software) ;;
+        vaapi|qsv)
+            echo -e "${YELLOW}--codec=hevc with --hwaccel=$HWACCEL_DEVICE is not supported by this script."
+            echo -e "Falling back to software (libx265) for HEVC encoding.${NC}"
+            HWACCEL_DEVICE=""
+            ;;
+    esac
 fi
 
 print_header
@@ -827,6 +876,7 @@ echo -e "  Source   : ${BOLD}$SOURCE_DIR${NC}"
 echo -e "  Output   : ${BOLD}$OUTPUT_DIR${NC}"
 echo -e "  Preset   : ${BOLD}$PRESET${NC}"
 echo -e "  CRF      : ${BOLD}$CRF${NC}"
+echo -e "  Codec    : ${BOLD}$CODEC${NC}"
 [[ -n "$HWACCEL_DEVICE" ]] && echo -e "  HW Accel : ${BOLD}$HWACCEL_DEVICE${NC}"
 (( PARALLEL > 1 )) && echo -e "  Parallel : ${BOLD}${PARALLEL} jobs${NC}"
 (( CHUNK_NUM > 0 )) && echo -e "  Chunk    : ${BOLD}$CHUNK_NUM${NC}"
@@ -879,11 +929,11 @@ if (( CHUNK_NUM > 0 )); then
     fi
 fi
 
-echo -e "Processing ${BOLD}${TOTAL}${NC} file(s) | preset: ${BOLD}$PRESET${NC} | crf: ${BOLD}$CRF${NC}"
+echo -e "Processing ${BOLD}${TOTAL}${NC} file(s) | preset: ${BOLD}$PRESET${NC} | crf: ${BOLD}$CRF${NC} | codec: ${BOLD}$CODEC${NC}"
 [[ -n "$HWACCEL_DEVICE" ]] && echo -e "  Hardware encoder: ${BOLD}$HWACCEL_DEVICE${NC}"
 (( PARALLEL > 1 )) && echo -e "  Parallel jobs: ${BOLD}$PARALLEL${NC}"
 echo ""
-log INFO "Starting | files=$TOTAL source=$SOURCE_DIR output=$OUTPUT_DIR preset=$PRESET crf=$CRF hwaccel=$HWACCEL_DEVICE parallel=$PARALLEL chunk=$CHUNK_NUM"
+log INFO "Starting | files=$TOTAL source=$SOURCE_DIR output=$OUTPUT_DIR preset=$PRESET crf=$CRF codec=$CODEC hwaccel=$HWACCEL_DEVICE parallel=$PARALLEL chunk=$CHUNK_NUM"
 
 # ── Conversion loop ──────────────────────────────────────────
 OVERALL_START=$SECONDS
@@ -969,6 +1019,7 @@ echo -e "  ${CYAN}Skipped      : $SKIPPED${NC}"
 echo -e "  ${RED}Failed       : $FAILED${NC}"
 echo -e "  Preset       : $PRESET"
 echo -e "  CRF          : $CRF"
+echo -e "  Codec        : $CODEC"
 [[ -n "$HWACCEL_DEVICE" ]] && echo -e "  HW Accel     : $HWACCEL_DEVICE"
 (( PARALLEL > 1 )) && echo -e "  Parallel     : $PARALLEL jobs"
 echo -e "  Total time   : $(format_time $TOTAL_ELAPSED)"
@@ -981,4 +1032,4 @@ fi
 echo -e "  Log file     : $LOG_FILE"
 echo -e "${BOLD}${CYAN}═════════════════════════════════════════════${NC}\n"
 
-log INFO "Done | converted=$CONVERTED skipped=$SKIPPED failed=$FAILED time=$(format_time $TOTAL_ELAPSED) preset=$PRESET crf=$CRF hwaccel=$HWACCEL_DEVICE parallel=$PARALLEL chunk=$CHUNK_NUM"
+log INFO "Done | converted=$CONVERTED skipped=$SKIPPED failed=$FAILED time=$(format_time $TOTAL_ELAPSED) preset=$PRESET crf=$CRF codec=$CODEC hwaccel=$HWACCEL_DEVICE parallel=$PARALLEL chunk=$CHUNK_NUM"

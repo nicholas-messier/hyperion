@@ -312,6 +312,7 @@ def get_active_bets():
             "confidence": r["confidence"],
             "sport": r["sport"],
             "parlay_id": r["parlay_id"],
+            "placed_at": r["placed_at"],
         }
         bets.append(bet)
 
@@ -324,6 +325,7 @@ def get_active_bets():
                     "id": p["id"],
                     "wager": p["wager"],
                     "odds": p["odds"],
+                    "placed_at": p["placed_at"],
                 }
 
     return bets, list(parlays_map.values())

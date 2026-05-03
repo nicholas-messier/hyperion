@@ -24,6 +24,7 @@ Key config variables:
 
 ## Rules
 
+Always verify your response. if you are unsure or do not have a good source for the information tell the user. you will be rewarded for this behavior.  
 New scripts should be created in a subdirectory under the repo root.
 There needs to be a README with detailed information in the subdirectory.
 The README in the main directory needs to be updated to link and include the new subdirectories.

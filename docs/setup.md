@@ -118,6 +118,15 @@ sudo apt install ffmpeg bc
 # Optional: VAAPI hardware acceleration (Intel GPU)
 sudo apt install vainfo intel-media-va-driver-non-free
 
+# Optional: NVIDIA hardware acceleration (NVENC + NVDEC)
+sudo apt install nvidia-driver-535 nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+# Lift the consumer NVENC 3-session limit (recommended for multi-channel ErsatzTV + Plex):
+sudo ~/bin/gpu/nvidia-patch-update.sh
+# Smoke-test concurrent NVENC sessions:
+~/bin/gpu/nvenc-session-test.sh 5
+
 # Conky desktop dashboard
 sudo apt install conky-all jq curl lm-sensors
 
@@ -125,7 +134,7 @@ sudo apt install conky-all jq curl lm-sensors
 sudo apt install tmux ncdu rsync smartmontools
 ```
 
-Docker is required for ErsatzTV — see [ersatztv.md](ersatztv.md) for Docker installation.
+Docker is required for ErsatzTV — see [ersatztv.md](ersatztv.md) for Docker installation. After installing the NVIDIA driver + container toolkit, both [Plex](plex.md#hardware-transcoding-nvidia-nvencnvdec) and [ErsatzTV](ersatztv.md#hardware-transcoding) can offload transcoding to the GPU; see those pages for the per-service config.
 
 ---
 

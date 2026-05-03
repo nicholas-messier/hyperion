@@ -274,6 +274,39 @@ def evaluate_bet(player_stats, player_name, stat_key, target, sport="nba"):
         return current, remaining, "NEEDS MORE"
 
 
+def _team_margin(teams, team_abbr):
+    """Return live margin (team_score - opp_score) for the given team.
+
+    `teams` is a dict mapping team abbreviation -> {"score": int, ...}.
+    Returns None if the team or opponent isn't found.
+    """
+    if not team_abbr or not teams:
+        return None
+    team_espn = espn_abbr(team_abbr)
+    if team_espn not in teams:
+        return None
+    team_score = int(teams[team_espn].get("score", 0) or 0)
+    opp_scores = [int(v.get("score", 0) or 0)
+                  for k, v in teams.items() if k != team_espn]
+    if not opp_scores:
+        return None
+    return team_score - max(opp_scores)
+
+
+def _team_winning_now(teams, team_abbr):
+    """Return True if team is currently winning, False if losing,
+    None if can't be determined / tied.
+    """
+    margin = _team_margin(teams, team_abbr)
+    if margin is None:
+        return None
+    if margin > 0:
+        return True
+    if margin < 0:
+        return False
+    return None  # tied
+
+
 def parse_bet_string(bet_str):
     """Parse a bet string like 'Jayson Tatum:REB:10:3.00'."""
     parts = bet_str.split(":")
@@ -342,8 +375,46 @@ def display_tracker(game_info, status_detail, teams, player_stats, bets, opp_abb
         stat = bet["stat"]
         target = bet["target"]
         wager = bet["wager"]
+        team_abbr = bet.get("team", "")
         total_wagered += wager
 
+        # Team-level bets (ML / SPREAD) don't need player stats — track
+        # against the live game score directly.
+        if stat == "ML":
+            covered = _team_winning_now(teams, team_abbr)
+            indicator = "✅" if covered else ("❓" if covered is None else "⏳")
+            if covered:
+                hits += 1
+            print()
+            print(f"  {indicator} Bet {i}: {player} ML (${wager:.2f})")
+            margin = _team_margin(teams, team_abbr)
+            if margin is not None:
+                print(f"     Current margin: {margin:+d}")
+            continue
+
+        if stat == "SPREAD":
+            margin = _team_margin(teams, team_abbr)
+            if margin is None:
+                indicator = "❓"
+                covered = None
+            else:
+                covered = (margin + target) > 0
+                if covered:
+                    hits += 1
+            indicator = "✅" if covered else ("❓" if covered is None else "⏳")
+            sign = "+" if target > 0 else ""
+            spread_label = f"{sign}{target:g}"
+            print()
+            print(f"  {indicator} Bet {i}: {player} {spread_label} SPREAD (${wager:.2f})")
+            if margin is not None:
+                needed = -target  # margin needed to cover (e.g., -8.5 for +8.5)
+                if covered:
+                    print(f"     COVERED: margin {margin:+d}, needed > {needed:+g}")
+                else:
+                    print(f"     Margin {margin:+d}, needs > {needed:+g} to cover")
+            continue
+
+        # Player props (default path)
         current, remaining, status = evaluate_bet(player_stats, player, stat, target)
 
         if status == "PLAYER NOT FOUND":

@@ -76,21 +76,38 @@ JSON files (`bankroll.json`, `active_bets.json`) are still written for backward 
 - Smart averages: rate stats (CMP%, QBR, RTG) show averages only, counting stats show totals + per-game
 
 ### Odds Checker (`odds_checker.py`)
-- Real-time DraftKings odds for NBA and NFL
+- Real-time DraftKings odds for **NBA, NFL, MLB, and NHL**
 - Supports moneyline (h2h), spreads, and totals markets
 - Player props support (may require paid API tier)
 - Shows API usage to track free tier limits
 - Raw JSON output option for programmatic use
 
+### Bet Intake (`bet_intake.py`)
+- Receives DraftKings bet slip screenshots via HTTP and parses them via OCR
+- **Bet types supported:**
+  - Player props (PTS / REB / AST / K / RUSH_YDS / SOG, etc. across all 4 sports)
+  - Moneyline bets (team-level)
+  - **Spread / run line / puck line bets** (NBA / NFL spreads, MLB run lines, NHL puck lines)
+  - Parlays (mix of any of the above)
+- Auto-detects sport from team name and writes to the SQLite DB
+
 ### Live Bet Tracker (`live_tracker.py`)
-- Tracks active player prop bets against real-time stats during live games
+- Tracks active bets against real-time stats during live games
+- Supports player props, moneyline, and spread bet types
 - Uses the free ESPN scoreboard and summary APIs (no API key)
 - **Multi-team support:** automatically reads `~/.config/sports-bets/active_bets.json` and finds games for all teams with active bets
 - Progress bars show how close each bet is to hitting
+- For spread bets: shows live margin and cover status
 - Parlay tracking across multiple legs
 - Auto-refreshes every 30 seconds (configurable)
 - **Daemon mode (`--daemon`):** runs in the background, writes state to `~/.cache/sports-bets/live_tracker.log`, manages a PID file for lifecycle control
 - **Auto-triggered** by the conky sports dashboard and the `game_monitor.py` cron job whenever a tracked game goes live
+
+### Auto-Settler (`auto_settle.py`)
+- Settles active bets when their game goes final
+- Handles **player props, moneylines, and spreads** across all 4 sports
+- Handles pushes correctly for integer spread bets (refunds the wager)
+- Reads box scores from ESPN, settles via `db.py`
 
 ## How It Works with Devin
 

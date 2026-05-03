@@ -95,26 +95,22 @@ export ODDS_API_KEY="your_key_here"
 
 **Usage:**
 ```bash
-# All NBA odds (spreads, moneylines, totals)
+# All odds for a sport (spreads, moneylines, totals)
 python3 scripts/odds_checker.py --sport nba
+python3 scripts/odds_checker.py --sport nfl
+python3 scripts/odds_checker.py --sport mlb       # run lines instead of spreads
+python3 scripts/odds_checker.py --sport nhl       # puck lines instead of spreads
 
-# NFL spreads only
-python3 scripts/odds_checker.py --sport nfl --market spreads
-
-# MLB odds (moneylines, run lines, totals)
-python3 scripts/odds_checker.py --sport mlb
-
-# NBA moneylines only
-python3 scripts/odds_checker.py --sport nba --market h2h
-
-# Player props (may require paid API tier)
-python3 scripts/odds_checker.py --sport nba --market player_props
+# Specific market
+python3 scripts/odds_checker.py --sport nba --market spreads
+python3 scripts/odds_checker.py --sport nba --market h2h            # moneyline
+python3 scripts/odds_checker.py --sport nba --market player_props   # may need paid tier
 
 # Raw JSON output
 python3 scripts/odds_checker.py --sport nfl --json
 ```
 
-**When to use:** To check current lines before making recommendations. Always pull fresh odds — lines move fast.
+**When to use:** To check current lines before making recommendations. Always pull fresh odds — lines move fast. Supports all 4 major sports: NBA, NFL, MLB, NHL.
 
 ### 4. Live Bet Tracker (`scripts/live_tracker.py`)
 Tracks active bets in real-time against live player stats during a game. Uses the free ESPN scoreboard and summary APIs — no API key required. Auto-detects the Celtics game on today's scoreboard.
@@ -181,7 +177,8 @@ python3 scripts/bet_intake.py --clear
    - **Traditional format:** `Jaylen Brown Over 24.5 Points`
    - **MLB props:** `6+` on one line, `Tyler Glasnow Strikeouts Thrown` on the next
    - **Team moneyline legs:** Detects `LA Dodgers` + `Moneyline` (handles OCR noise)
-4. Detects parlays from "X-Pick Parlay" or "X-Leg Parlay" text
+   - **Spread / run line / puck line bets:** Detects `PHI 76ers +8.5 / Spread` (NBA / NFL spreads, MLB run lines, NHL puck lines). Handles OCR-merged forms like `PHI76ers+8.5` and OCR garble for `-` (renders as `~` or `N`)
+4. Detects parlays from "X-Pick Parlay" or "X-Leg Parlay" text — handles mixed-type parlays (props + spreads + ML)
 5. Looks up player teams via ESPN search API if not found in OCR text
 6. Writes to SQLite DB (primary) and JSON file (backward compat)
 7. Raw OCR output saved to `~/.cache/sports-bets/intake/` for debugging
@@ -395,7 +392,7 @@ iOS DraftKings Screenshot
 When the user asks for a pick or betting advice, follow this process:
 
 ### Step 1: Understand the Ask
-- What sport? NBA, NFL, or MLB?
+- What sport? NBA, NFL, MLB, or NHL?
 - What type of bet? Spread, moneyline, total, player prop?
 - What game(s) or player(s)?
 

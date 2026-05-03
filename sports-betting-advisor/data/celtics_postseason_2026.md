@@ -3,10 +3,10 @@
 **Started:** April 2026 — NBA Playoffs Round 1
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
-**Current Bankroll:** $44.77
+**Current Bankroll:** $26.83 ($0.00 in play)
 **Advisor:** Jay Trotter
 **Scope:** All NBA Playoff games (Celtics remain the anchor)
-**Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, hedging playbook)
+**Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, [bet type playbook](base_strategy.md#bet-type-playbook), hedging playbook)
 
 ---
 
@@ -77,20 +77,38 @@
 || Apr 28, 2026 | Tatum Over 6.5 AST — LOSS | $0.00 | $29.77 |
 || Apr 29, 2026 | Wemby Over 12.5 REB — WIN | +$5.06 | $34.83 |
 || Apr 29, 2026 | SGP: Glasnow 6+ K + LAD ML (-135) | -$3.00 | $31.83 |
+|| Apr 29, 2026 | SGP: Glasnow 6+ K + LAD ML — LOSS | $0.00 | $31.83 |
+|| Apr 29, 2026 | Derrick White First 3PT (+900 boost) | -$3.00 | $28.83 |
+|| Apr 29, 2026 | Derrick White First 3PT — LOSS | $0.00 | $28.83 |
+|| May 1, 2026 | Parlay: ORL +3.5 + TOR +4.5 (+267) | -$2.00 | $26.83 |
+|| May 1, 2026 | Parlay (ORL +3.5 + TOR +4.5) — LOSS | $0.00 | $26.83 |
+|| May 2, 2026 | Maxey 20+ PTS (-282, boost ineligible) | -$2.00 | $24.83 |
+|| May 2, 2026 | Brown 20+ PTS (-441) | -$2.00 | $22.83 |
+|| May 2, 2026 | Maxey bet — CANCELLED (boost ineligible at -282) | +$2.00 | $24.83 |
+|| May 2, 2026 | PHI +8.5 spread (-110 → boosted +119, 30% DK boost) | -$2.00 | $22.83 |
+|| May 2, 2026 | BOS -8.5 spread (-105 → boosted +124, 30% DK boost) — ARB w/ PHI | -$2.00 | $20.83 |
 
-**Current Balance (unwagered):** $31.83
+**Current Balance (unwagered):** $20.83
 **Total Deposited:** $40.00
-**Total Wagered:** $125.00
-**In Play:** $3.00
-**Net Profit:** -$5.17
+**Total Wagered:** $139.00
+**In Play:** $6.00
+**Net Profit:** -$13.17
 
 ---
 
 ## Active Bets
 
-| Bet | Odds | Wager | To Pay | Game |
-|-----|------|-------|--------|------|
-| SGP: Glasnow 6+ K + LAD ML | -135 | $3.00 | $5.22 | MIA @ LAD |
+| Player | Team | Stat | Target | Wager | Odds | Boost | Confidence |
+|--------|------|------|--------|-------|------|-------|------------|
+| Jaylen Brown | BOS | PTS | 20+ | $2.00 | -441 | None (ineligible) | Lock |
+| PHI 76ers | PHI | SPREAD | +8.5 | $2.00 | -110 → +119 | 30% applied ✓ | Strong Lean |
+| BOS Celtics | BOS | SPREAD | -8.5 | $2.00 | -105 → +124 | 30% applied ✓ | Strong Lean (ARB) |
+
+**Game:** PHI @ BOS — East 1st Round Game 7, 7:30 PM ET (May 2)
+**Total wagered:** $6.00 (22.4% of $26.83)
+**Effective at-risk capital:** $2.00 (only Brown — the spread plays are an ARB lock)
+**Spread ARB profit (guaranteed):** $0.38 minimum / $0.48 maximum (one side must win, no push possible on +/- 8.5)
+**Combined EV:** +$0.55-$0.65 (Brown raw +$0.17 + spread ARB lock $0.38-$0.48)
 
 ---
 
@@ -121,9 +139,12 @@
 | Apr 27 | Cade Over 10+ AST (-116) | $3.00 | L | $0.00 | -$3.00 |
 | Apr 28 | Tatum Over 6.5 AST (-138) | $3.00 | L | $0.00 | -$3.00 |
 | Apr 29 | Wemby Over 12.5 REB (-145) | $3.00 | W | $5.06 | +$2.06 |
+| Apr 29 | SGP: Glasnow 6+ K + LAD ML (-135) | $3.00 | L | $0.00 | -$3.00 |
+| Apr 29 | Derrick White First 3PT (+900 boost) | $3.00 | L | $0.00 | -$3.00 |
+| May 1 | Parlay: ORL +3.5 + TOR +4.5 (+267) | $2.00 | L | $0.00 | -$2.00 |
 
-**Record:** 13-10 (16 straight bets, 5 parlays — 3 parlay W, 2 parlay L)
-**Running P&L:** -$5.17
+**Record:** 13-13 (17 straight bets, 7 parlays — 3 parlay W, 4 parlay L).
+**Running P&L:** -$13.17
 
 ---
 
@@ -338,9 +359,9 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 
 ## Round-by-Round Game Plan
 
-### Round 1 — CURRENT (Bankroll: $41.77, Goal: $75+)
+### Round 1 — CURRENT (Bankroll: $26.83 + $2 in play, Goal: $75+)
 
-**Status:** 13-10 record. Bankroll at $31.83 unwagered ($34.83 total, $3 in play on MLB SGP). Drawdown protocol active — recent run 3-7 over last 10. Lock-only, 15% daily cap. Expanded to MLB pitcher K props — first MLB bet: Glasnow 6+ K + LAD ML SGP with DK 20% boost promo. NBA action resumes Thu (BOS @ PHI, DEN @ MIN).
+**Status:** 13-12 record. Bankroll at $26.83, $2 in play on tonight's spread parlay. Drawdown protocol active — recent run 3-9 over last 12. **After two consecutive losing sessions: Lock-only bets, 15% daily cap** until a winning session resets the streak. MLB SGP (Glasnow K + LAD ML) and Derrick White boost both lost Apr 29. **Pivoted to spread bets May 1** — first time using this bet type. Need a clean winning night to reset momentum.
 
 **Daily Approach:**
 - Scan each day's games for Lock and Strong Lean props using the tier system above.
@@ -497,6 +518,181 @@ Season-wide or last-10 hit rates are a starting point, not the final word. **Bef
 ### Lesson Learned (Apr 28): Role Player Variance Affects Star Props
 
 When a role player has an outlier game (Pritchard 32 pts), it directly suppresses the star's prop (Brown 20 pts). **Before betting a star's scoring prop, check if a teammate has been trending up in scoring.** If a role player is in a hot streak, the star's usage and minutes can both shrink — especially in blowout-prone matchups where garbage time comes early. Look for props that benefit from ANY teammate scoring well (like assists) rather than props that compete with teammate scoring (like points).
+
+### May 1, 2026 — Session 9: Bet Type Pivot
+
+- **Coming off a brutal skid (3-9 last 12 props).** User asked about diversifying away from props — specifically moneylines, then spread bets. Triggered a full bet-type framework review.
+- **Odds floor analysis (request: extend to -400):** Ran the math. **Decision: KEEP -200 floor.** At -400, you go 8-2 (80%) for literally $0 profit. One -400 loss requires 4 wins to recoup. Receipts: Apr 20 we went 3-1 with -446 and -710 lines and netted -$1.06. Added a future "Lock exception" allowing up to -300 (parlay-only, Lock-tier only) when bankroll grows past $200. Documented in `base_strategy.md` under [Why the Floor is -200](base_strategy.md#why-the-floor-is--200-not-higher).
+- **Spread betting introduced as Tier 2 bet type.** Spread juice is standardized at ~-110, making the odds floor a non-issue. Documented full spread framework in `base_strategy.md` under [Bet Type Playbook](base_strategy.md#bet-type-playbook). Also documented moneyline tier (use sparingly) and totals tier (lowest priority).
+- **Tonight's slate (May 1) — closeout night across NBA, NHL, MLB.** Pulled NBA series box scores for the three Game 6s:
+  - **DET @ ORL (DET -3.5):** ORL is 3-0 ATS at home this series (won by 11, 8, 6). DET is 0-2 ATS on the road. **ORL +3.5 is a Strong Lean.**
+  - **CLE @ TOR (CLE -4.5):** TOR is 2-0 ATS at home (won by 22, 4). CLE is 0-2 ATS on the road. **TOR +4.5 is a Strong Lean.**
+  - **LAL @ HOU (HOU -3.5):** Mixed signal — HOU 1-1 ATS at home but G4 was a +19 blowout. HOU ML probably cleaner than the spread.
+- **Bet placed:**
+  - **Cross-game spread parlay:** ORL +3.5 (-108) + TOR +4.5 (-110) = +267 odds. $2.00 wager → $7.35 to pay.
+  - Both legs Strong Lean+ per the new spread framework. Cross-game (different series). Within drawdown cap (~7% of bankroll). Fits the "fade road favorites who can't win in opponent's building" pattern.
+- **Exposure:** $2.00 (7% of $28.83 bankroll, well within 15% drawdown cap). Bankroll: $28.83 → $26.83 + $2 in play.
+- **Why parlay vs straight bets:** Either spread straight at -108/-110 nets ~$1.85 profit on a $2 wager. Parlay nets $5.35 profit if both hit. Same exposure, ~3x upside, both legs have independent edge — fits the [parlay framework](base_strategy.md#parlay-rules). Cross-game (different series) decorrelates the legs.
+
+### Lesson Learned (May 1): Spread Bets Are the Cleaner Vehicle for Series Edges
+
+When the data shows a clear cover pattern within a playoff series (road favorite is 0-2 ATS in opponent's building, home dog is 3-0 ATS at home), **the spread bet is structurally better than the moneyline:**
+1. Standard ~-110 juice avoids the odds floor problem entirely
+2. Cover doesn't require outright win — home dogs can lose by 1-3 and still cash
+3. Cross-game spread parlays at +260+ offer real upside vs ~+185 ML parlays
+4. Public bias toward laying juice on the better team creates persistent value on home dogs
+
+When evaluating any future closeout / elimination game in a playoff series, **check the series ATS record by venue first.** That data point alone is more valuable than the regular-season records the public is using.
+
+### Lesson Learned (May 1): The Bet Intake Parser Doesn't Handle Spreads
+
+Tonight's spread parlay screenshot was uploaded successfully (OCR caught it in `~/.cache/sports-bets/intake/`), but `bet_intake.py` didn't write it to the DB — the parser only handles ML and player props. Recorded the parlay manually via `db.record_parlay()`.
+
+**RESOLVED (May 2):** Extended the parser to handle spread bets across all 4 sports — NBA / NFL spreads, MLB run lines, NHL puck lines. Single bets and parlay legs both supported. The parser also tolerates OCR garble: `~` and `N` are treated as `-` (Tesseract often misreads hyphens). Conky now displays spreads with proper team abbreviation and signed value (`PHI +8.5 SPREAD` instead of the old `TEAM 8.5+ SPREAD`). Auto-settle handles spread coverage and pushes (refunds the wager on integer pushes). NHL added to `odds_checker.py`.
+
+### May 2, 2026 — Session 10: Game 7 + DK 30% Boost
+
+- **Saturday slate:** Only NBA game tonight is **PHI @ BOS Game 7** (series tied 3-3). PHI won G5 in BOS by 16 and G6 in PHI by 13 — Celtics blew a 3-1 lead. DK opened BOS -8.5 (-110), ML BOS -305, Total 205.5.
+- **DK promo on the table:** **30% profit boost on bets at -200 or longer** (more juiced), up to 2 boosts, NBA-only, tonight-only. This is a rare promo type — books usually offer boosts on dogs, not chalky favorites. The boost converts to ~5-6 pp of edge in the -200/-500 range.
+- **Strategic implication:** Our normal odds floor rule (no straights past -200) gets a clean exception via the boost — the boost effectively shrinks the implied probability gap by ~5-6 pp. Still need a hit rate above the boosted implied prob to be +EV.
+- **Math reference:**
+
+  | Original Odds | Boosted Implied | Edge from Boost |
+  |---------------|-----------------|-----------------|
+  | -200 | 60.6% | +6.1 pp |
+  | -250 | 65.8% | +5.6 pp |
+  | -300 | 69.8% | +5.2 pp |
+  | -400 | 75.5% | +4.5 pp |
+  | -500 | 79.4% | +4.0 pp |
+
+- **Series-tested + season-tested player floor analysis (last 6 vs PHI + last 20 reg season):**
+  - **Maxey 20+ PTS:** Series 6/6 (100%) + reg season 19/20 (95%) = **25/26 = 96.2% combined**. Line at -293, boosted implied 69.3%, edge +26.9%. Clean Lock.
+  - **Brown 20+ PTS:** Series 5/6 (83%, only G6 missed at 18) + reg season 18/20 (90%) = **23/26 = 88.5% combined**. Line at -441, boosted implied 77.8%, edge +10.7%. Lock with the boost.
+  - **PG 12+ PTS:** Series 6/6 (100%) BUT reg season only 14/20 (70%) — combined 77%. Marginal value, didn't take.
+  - **Tatum 15+ PTS:** Combined ~96% but boosted implied 88.5% leaves only +7.5% edge — less EV than Maxey.
+  - **Embiid 15+ PTS:** Only 3-game playoff sample (G4-G6) — not enough data despite 100% in those.
+- **Bets placed (both boosts applied per DK promo):**
+  - Tyrese Maxey 20+ PTS @ -293 — $2.00 wager, $0.68 raw profit / $0.88 boosted profit
+  - Jaylen Brown 20+ PTS @ -441 — $2.00 wager, $0.45 raw profit / $0.59 boosted profit
+- **Total exposure: $4.00 (14.9% of $26.83, exactly at drawdown cap).** Both legs Lock-tier (88.5% and 96.2% combined hit rates).
+- **Combined EV:** +$1.06 with boost applied / +$0.75 raw odds. Both bets are positive EV regardless of whether the boost hits.
+- **Single-game cap bend:** Both bets on Game 7 = 100% single-game exposure (rule says max 50%). Justified because: (1) only one NBA game tonight (no decorrelation possible), (2) plays are weakly anti-correlated through minute distribution (BOS blowout favors Brown, PHI blowout favors Maxey), (3) boost EV is time-limited and can't be deferred, (4) max loss = daily cap, not over.
+- **OCR/intake watchout:** Bet slip screenshots showed pre-boost to-pay amounts ($2.68 and $2.45 instead of the boosted $2.88 and $2.59). Need to confirm DK applied the boost at placement vs. as a settlement bonus credit.
+
+### Lesson Learned (May 2): Boost Promos Reframe the Odds Floor
+
+Our normal "no straight bets past -200" rule exists because heavy juice eats your margins on losses (Apr 20 lesson). But **a 30% profit boost on -200+ odds adds ~5-6 pp of free edge,** which mathematically reverses the cliff. With the boost:
+- A 70% hit rate at -250 boosted (implied 65.8%) is now +EV — it wasn't unboosted.
+- A 90% hit rate at -441 boosted (implied 77.8%) is comfortably +EV.
+
+**The rule for using boosts on juiced lines:**
+1. Boost must apply (verify on the bet slip — not all promos auto-apply).
+2. Combined hit rate (series + reg season last 20) must exceed boosted implied prob by 5%+ minimum.
+3. Lock-tier evidence required — book this rule especially when in drawdown.
+4. Use multiple boosts only if each play independently clears the bar.
+
+### Lesson Learned (May 2): The Boosted Bet Slip May Show Pre-Boost To-Pay
+
+DK's "to-pay" amount on the bet slip can show the **raw odds payout, not the boosted payout** — the boost may be credited as a bonus at settlement. Always verify:
+1. The "Boost Applied" badge or indicator is present on the slip
+2. The to-pay calculation uses the boosted profit (raw_profit × 1.30 for a 30% boost)
+3. If unsure, check DK's "My Promos" tab post-placement to confirm the boost is attached
+
+When the boost IS applied correctly, the slip shows the **original odds crossed out** and the **boosted odds replacing them** (e.g., -110 → +119), with a purple "+30% Boost" badge. The to-pay reflects the boosted payout.
+
+### Lesson Learned (May 2): Read the Promo Terms Carefully — "Min Total Odds" Direction
+
+**The biggest mistake of the night:** Misread "Min Total Odds of -200" to mean bets at -200 or MORE juiced (-300, -500). The correct meaning: **"Min Total Odds of -200" = the SHORTEST allowed odds is -200**, meaning bets must be at -200 or **LESS** juiced (closer to even, e.g., -150, -110, +100, +200). Anything more juiced than -200 (-282, -441) does NOT qualify.
+
+**Standard betting terminology:**
+- "Longer odds" = more positive / less likely / bigger payout (e.g., +500 vs +200)
+- "Shorter odds" = more juiced / more likely / smaller payout (e.g., -500 vs -200)
+- "Min Total Odds" of -200 = the shortest acceptable odds, i.e., the cap on juice
+
+**Process fix:** When evaluating any boost or promo, **always upload the Terms screenshot to the bet intake server first** so we can read the exact eligibility rules before placing bets. Don't trust verbal interpretation of "longer/shorter odds" — verify the terms in writing.
+
+**The cost tonight:** Placed Maxey 20+ @ -282 thinking it qualified for the boost. It didn't. Cancelled the bet (got full $2 back) and rebet PHI +8.5 @ -110 boosted to +119 instead. Net cost: zero financial loss, but one boost burned and one play swapped from Lock-tier (96% Maxey) to Strong Lean (67% PHI +8.5 ATS) with boost compensation.
+
+### Lesson Learned (May 2): Cancel Quickly to Get Full Refund
+
+DK allows bet cancellation within a window after placement, but the refund may be PARTIAL if odds have shifted. Tonight's cancellation:
+- Maxey -282 ($2 wager): full $2 refund (line was stable)
+- Brown -441 ($2 wager): would have only refunded $1.96 (line moved against us slightly)
+
+**Rule:** When cancelling for promo eligibility issues, cancel the bet with the most stable line first. Cancel quickly — the longer you wait, the more line drift erodes the refund.
+
+### Lesson Learned (May 2): Boost-Driven Spread Arbitrage
+
+**Discovered tonight:** When DK offers a 30% Profit Boost on bets at -200 or longer odds (i.e., closer to even money), **applying the boost to BOTH sides of a spread can create a guaranteed-profit arbitrage.**
+
+The math:
+- **Without boost** (standard juice): PHI +8.5 (-110) + BOS -8.5 (-105) = combined implied 103.6% → 3.6% house edge (no arb)
+- **With 30% boost on both**: PHI +119 + BOS +124 = combined implied 90.3% → **9.7% built-in profit margin** (arb opens up)
+
+Tonight's PHI @ BOS Game 7 setup:
+| Side | Boosted Odds | Wager | Wins When | Profit |
+|------|--------------|-------|-----------|--------|
+| PHI +8.5 | +119 | $2 | BOS wins by 0-8 OR PHI wins | $2.38 |
+| BOS -8.5 | +124 | $2 | BOS wins by 9+ | $2.48 |
+
+Outcomes (mutually exclusive — half-point hook prevents pushes):
+- BOS wins by 9+: net **+$0.48**
+- BOS wins by 0-8 or PHI wins: net **+$0.38**
+
+**Risk-free profit: $0.38 to $0.48 on $4 wagered. Zero scenarios where we lose.**
+
+### When does this arb work?
+
+The arb opens when:
+1. The promo applies to BOTH sides (most boost promos restrict to one side or "single bets only", but DK's "30% All Purpose Boost" allows any qualifying bet)
+2. The boost adds enough edge to flip the combined implied probability below 100%
+3. There's no push risk (use half-point hooks, e.g., +/-8.5 not +/-8)
+
+### How to identify the arb opportunity:
+1. Both sides of the spread must qualify for the boost (-200 or longer per the boost terms)
+2. Calculate boosted implied prob for each side: `boosted_implied = 100 / (boosted_odds + 100)` for positive boosted odds
+3. If sum of both sides' boosted implied prob < 100%, you have an arb
+4. Use HALF-POINT spreads only — integer pushes destroy the arb
+
+### Strategy framework update:
+**Adding "Arb Plays" as a special bet category** that doesn't count toward normal exposure caps the same way. The wager amount is on the books, but the **effective at-risk capital is $0** — any arb leg that loses is paid by the winning leg plus the boost margin.
+
+For tonight: $4 wagered on the spread arb but effective at-risk = $0. Brown's $2 is the only real capital at risk on the night.
+
+### May 2, 2026 — Session 11: Tooling Refactor (Spreads + Multi-Sport)
+
+After tonight's PHI +8.5 spread bet revealed gaps, did a tooling pass:
+- **Conky display fix:** `update_sports_dashboard.py` was showing `TEAM 8.5+ SPREAD` because the spread bet was recorded with `player='TEAM'`. Fixed by storing the full team name (`Philadelphia 76ers`) and signing the target. Conky now displays `$2 PHI +8.5 SPREAD` and shows live cover status during the game (`COVER` / `NO COVER` with current margin).
+- **Bet intake parser — added spread support:** The parser previously only handled player props and moneylines (per the May 1 lesson). Added a `_find_spread_bets()` strategy that anchors on the `Spread` / `Run Line` / `Puck Line` keyword, then pulls the team + signed number from the same line OR the line above. Handles:
+  - OCR-merged forms: `PHI76ers+8.5` (no spaces)
+  - OCR garbled signs: `~108` and `N110` are interpreted as `-108` and `-110`
+  - Sport-shared abbreviations: `PHI` resolves to 76ers (NBA), Phillies (MLB), Eagles (NFL), or Flyers (NHL) based on the matched short name
+- **Auto-settle — added `check_spread()`:** New helper in `sport_config.py` that returns `(covered, margin)` for a spread bet. Handles pushes correctly for integer spreads (refunds the wager). Wired into `auto_settle.py` for both straight bets and parlay legs.
+- **Live tracker:** Now handles ML and SPREAD bet types without crashing. Shows live margin and cover status during the game.
+- **Odds checker:** Added NHL support (`--sport nhl`) since we placed an NHL bet on Apr 28's slate. Now supports all 4 major sports.
+- **Tests:** Added unit tests for `check_spread()` covering: dog covers / doesn't cover, favorite covers / doesn't cover, integer push, in-progress games, dog wins outright. All pass.
+
+### Lesson Learned (May 2): Auto-Settler Matched Spread Bets Against the Wrong Game
+
+**Bug discovered tonight (~7:50 PM):** The user noticed his spread bets weren't displayed in conky. Investigation revealed the auto-settler had already settled both spread bets — but **before Game 7 even tipped off:**
+- 6:45 PM: PHI +8.5 marked WIN, +$4.38 paid
+- 7:15 PM: BOS -8.5 marked LOSS
+
+Game 7 didn't tip until 7:30 PM. The settler matched the bets against **Game 6 from April 30** (PHI 106 - 93 BOS, a +13 margin) instead of the in-progress Game 7. The math was right, the game was wrong.
+
+**Root cause:** `auto_settle.py`'s `get_final_games()` returned ANY `STATUS_FINAL` event from any sport, keyed only by team abbreviation. There was no check that the game's date was on or after the bet's `placed_at`, and no check that the game's sport matched the bet's sport. Two simultaneous defects made this triggerable:
+1. **Stale-game match:** A bet placed today could be matched against yesterday's still-on-the-scoreboard final.
+2. **Cross-sport collision:** An NBA Celtics bet (`team='BOS'`) could match an MLB Red Sox final (also `'BOS'`) because both share the abbreviation.
+
+**Fix (committed in this session):**
+- New helper `find_final_game_for_bet(final_games, team, placed_at, sport)` resolves each bet to a single specific game, applying both guards: `game_day >= bet_day` and `game.sport == bet.sport`.
+- `get_final_games()` now returns `{team: [event_info, ...]}` (a list per team) so multiple finals per team can coexist (yesterday + today, or NBA + MLB).
+- `check_spread()` and `check_moneyline()` in `sport_config.py` now accept an `event_id` parameter so they only consider one specific game; the auto-settler always passes it.
+- `db.get_active_bets()` now includes `placed_at` in returned bet dicts (was missing before — required for the date guard).
+
+**Recovery for tonight:** Reversed both bad settlements with proper `reversal` ledger entries (audit trail preserved), restored bets 42 + 43 to active. Bankroll: $25.21 → $20.83 with $6 in play. Auto-settler will re-evaluate them when Game 7 actually goes final.
+
+**Why this matters as a betting principle:** Local books going out of sync with DraftKings is dangerous because you stop trusting your own bankroll number. If the Game 6 fluke had gone the other way (BOS covered Game 6 but loses Game 7), we'd be celebrating a phantom $4+ profit until DraftKings settled the real bet hours later. **Always verify settlement timing matches the actual game's final time** when reviewing the ledger. If a settled_at timestamp predates the game's tip-off, the settlement is wrong.
 
 ---
 

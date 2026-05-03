@@ -50,7 +50,7 @@ from sport_config import (
     SPORTS, espn_abbr, dk_abbr, get_sport_urls,
     get_all_scoreboard_urls, detect_sport,
     extract_player_stats_from_summary, get_stat_value,
-    check_moneyline,
+    check_moneyline, check_spread,
 )
 
 
@@ -106,8 +106,12 @@ def fetch_box_score(event_id: str, sport: str = "nba") -> dict:
 def get_final_games(scoreboards: dict) -> dict:
     """Extract final games from all scoreboards.
 
-    Returns {team_abbr: event_info} mapping every team in a final game
-    to the game's event data (including which sport).
+    Returns {team_abbr: [event_info, ...]} mapping every team in a final
+    game to a list of that team's final games. Multiple entries per team
+    is possible when the scoreboard returns games from multiple days
+    (e.g., yesterday's final + today's final). Each event_info includes
+    the game's UTC date so callers can ensure they only match a bet to
+    a game that occurred on/after the bet's placed_at date.
     """
     finals = {}
     for sport, scoreboard in scoreboards.items():
@@ -124,10 +128,60 @@ def get_final_games(scoreboards: dict) -> dict:
                 "teams": teams,
                 "status": status,
                 "sport": sport,
+                "date": event.get("date", ""),  # ISO 8601 UTC, e.g. 2026-05-02T23:30Z
             }
             for t in teams:
-                finals[t] = info
+                finals.setdefault(t, []).append(info)
     return finals
+
+
+def find_final_game_for_bet(
+    final_games: dict,
+    team: str,
+    placed_at: str,
+    sport: str = "",
+) -> dict | None:
+    """Find the final game for `team` that this bet should settle against.
+
+    Returns the most recent final game that satisfies BOTH:
+        1. Sport matches the bet's sport (if provided). Prevents an NBA
+           Celtics bet from matching an MLB Red Sox final with the same
+           "BOS" abbreviation.
+        2. Game's UTC date is on or after the bet's placed_at date.
+           Prevents a bet placed today from matching yesterday's stale
+           STATUS_FINAL game still on the scoreboard window. (This is
+           the bug we hit on May 2 2026 — a Game 7 spread bet matched
+           Game 6 from two days earlier.)
+
+    Returns None if no matching game is found.
+    """
+    games = final_games.get(team, [])
+    if not games:
+        return None
+
+    # Determine the earliest-acceptable game date from the bet's placed_at.
+    # We treat both as UTC-comparable strings; ISO 8601 sorts lexically.
+    # Trim placed_at to YYYY-MM-DD so a 12:18 PM bet placement still
+    # accepts a 7:30 PM game (same calendar day in local time, even if
+    # the game's UTC stamp rolls over to the next UTC date).
+    bet_day = (placed_at or "")[:10]
+    if not bet_day:
+        # No placed_at — safest is to skip rather than silently match.
+        return None
+
+    # Sport-filter first (drops cross-sport collisions like NBA BOS vs MLB BOS)
+    if sport:
+        games = [g for g in games if g.get("sport") == sport]
+        if not games:
+            return None
+
+    # Sort newest-first; pick the first game on/after bet_day
+    sorted_games = sorted(games, key=lambda g: g.get("date", ""), reverse=True)
+    for g in sorted_games:
+        game_day = (g.get("date") or "")[:10]
+        if game_day and game_day >= bet_day:
+            return g
+    return None
 
 
 def get_in_progress_games(scoreboards: dict) -> dict:
@@ -195,36 +249,48 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
     final_games = get_final_games(scoreboards)
     in_progress = get_in_progress_games(scoreboards)
 
-    # Group bets by team to minimize API calls
-    team_bets = {}       # espn_team -> [bet, ...]
-    parlay_map = {}      # parlay_id -> parlay info
-    bet_parlay_legs = {} # parlay_id -> [bet, ...]
+    # Resolve each bet to its specific final game (or None) using the
+    # placed_at date guard. Storing this per-bet (instead of per-team)
+    # is what prevents the bug where a bet placed today gets matched
+    # against yesterday's final game still on the scoreboard.
+    bet_games = {}  # bet_id -> resolved final game info, or None
+    parlay_map = {}
+    bet_parlay_legs = {}
 
     for p in parlays:
         parlay_map[p["id"]] = p
 
     for bet in bets:
         team = espn_abbr(bet.get("team", ""))
-        if team:
-            team_bets.setdefault(team, []).append(bet)
+        placed_at = bet.get("placed_at", "")
+        # Sport guard prevents cross-sport team-abbr collisions
+        # (e.g., NBA Celtics "BOS" matching MLB Red Sox "BOS").
+        bet_sport = bet.get("sport", "") or detect_sport(team, bet.get("stat", ""))
+        bet_games[bet["id"]] = find_final_game_for_bet(
+            final_games, team, placed_at, sport=bet_sport,
+        )
         if bet.get("parlay_id"):
             bet_parlay_legs.setdefault(bet["parlay_id"], []).append(bet)
 
-    # Fetch box scores for final games that have active bets
+    # Fetch box scores for the resolved games (one fetch per unique event)
     game_stats = {}  # event_id -> player_stats
-    teams_to_fetch = set(team_bets.keys()) & set(final_games.keys())
+    fetched_events = set()
 
-    for team in teams_to_fetch:
-        event_id = final_games[team]["event_id"]
-        if event_id in game_stats:
+    for bet in bets:
+        game = bet_games.get(bet["id"])
+        if not game:
             continue
-        sport = final_games[team].get("sport", "nba")
+        event_id = game["event_id"]
+        if event_id in fetched_events:
+            continue
+        fetched_events.add(event_id)
+        sport = game.get("sport", "nba")
         try:
             summary = fetch_box_score(event_id, sport=sport)
             game_stats[event_id] = extract_player_stats_from_summary(summary, sport=sport)
         except requests.RequestException as e:
             if not quiet:
-                print(f"  Warning: Could not fetch box score for {final_games[team]['name']}: {e}")
+                print(f"  Warning: Could not fetch box score for {game['name']}: {e}")
 
     # Merge all player stats into one dict (players are unique across games)
     all_player_stats = {}
@@ -239,39 +305,68 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
         team = espn_abbr(bet.get("team", ""))
         bet_id = bet["id"]
         bet_sport = bet.get("sport", "") or detect_sport(team, bet.get("stat", ""))
+        game = bet_games.get(bet_id)
 
-        # Check if this bet's game is final
-        if team not in final_games:
+        # Check if this bet has a resolved final game
+        if game is None:
+            # Format the target nicely depending on bet type
+            if bet["stat"] == "SPREAD":
+                sign = "+" if bet["target"] > 0 else ""
+                bet_label = f"{bet['player']} {sign}{bet['target']:g} SPREAD"
+            elif bet["stat"] == "ML":
+                bet_label = f"{bet['player']} ML"
+            else:
+                bet_label = f"{bet['player']} {bet['target']:g}+ {bet['stat']}"
+
             if team in in_progress:
                 detail = in_progress[team].get("detail", "in progress")
                 if not quiet:
-                    print(f"  PENDING: {bet['player']} {bet['target']}+ {bet['stat']}"
-                          f" — game still {detail}")
+                    print(f"  PENDING: {bet_label} — game still {detail}")
             else:
                 if not quiet:
-                    print(f"  PENDING: {bet['player']} {bet['target']}+ {bet['stat']}"
-                          f" — no game found on today's scoreboard")
+                    print(f"  PENDING: {bet_label} — no game found on today's scoreboard")
             results["pending"] += 1
             continue
 
-        game_sport = final_games[team].get("sport", bet_sport or "nba")
+        game_sport = game.get("sport", bet_sport or "nba")
+        event_id = game["event_id"]
+
+        # Track spread margin for log messages (None for non-spread bets)
+        spread_margin = None
+        is_push = False
 
         # Handle moneyline bets — check game winner, not player stats
         if bet["stat"] == "ML":
-            # Check if team won via scoreboard
+            # Check if team won via scoreboard (event_id-scoped)
             sport_scoreboard = scoreboards.get(game_sport, {})
-            ml_result = check_moneyline(sport_scoreboard, team)
+            ml_result = check_moneyline(sport_scoreboard, team, event_id=event_id)
             if ml_result is None:
                 results["pending"] += 1
                 continue
             hit = ml_result
+        elif bet["stat"] == "SPREAD":
+            # Check spread coverage (signed target: + for dog, - for fav)
+            sport_scoreboard = scoreboards.get(game_sport, {})
+            covered, spread_margin = check_spread(
+                sport_scoreboard, team, bet["target"], event_id=event_id
+            )
+            if covered is None and spread_margin is None:
+                # Game not final yet
+                results["pending"] += 1
+                continue
+            if covered is None:
+                # Push — refund wager, no W/L
+                is_push = True
+                hit = False  # treated as not a win
+            else:
+                hit = covered
         else:
             # Look up player stats
             player_stats = all_player_stats.get(bet["player"])
             if player_stats is None:
                 if not quiet:
                     print(f"  WARNING: {bet['player']} not found in box score"
-                          f" for {final_games[team]['name']}")
+                          f" for {game['name']}")
                 results["errors"].append(f"Player not found: {bet['player']}")
                 results["pending"] += 1
                 continue
@@ -292,11 +387,14 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
         is_parlay_leg = bet.get("parlay_id") is not None
 
         if is_straight:
-            if hit:
+            if is_push:
+                payout = bet["wager"]  # refund the stake
+                result_str = "P"
+                results["pending"] += 0  # not really pending, but not counted as W/L
+            elif hit:
                 payout = calc_payout(bet["wager"], bet.get("odds", 0))
-                # Fallback if no odds stored
                 if payout == 0:
-                    payout = bet["wager"]  # At minimum return the wager
+                    payout = bet["wager"]  # fallback: return wager
                     if not quiet:
                         print(f"  WARNING: No odds for bet {bet_id}, payout set to wager amount")
                 result_str = "W"
@@ -307,7 +405,7 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
                 results["losses"] += 1
 
             stat_label = "PRA" if bet["stat"] == "PRA" else bet["stat"]
-            icon = "W" if hit else "L"
+            icon = "P" if is_push else ("W" if hit else "L")
             if not quiet:
                 if bet["stat"] == "ML":
                     result_desc = "WIN" if hit else "LOSS"
@@ -317,6 +415,20 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
                     else:
                         print(f"  {icon}: {bet['player']} ML {result_desc}"
                               f" — ${bet['wager']:.2f} lost")
+                elif bet["stat"] == "SPREAD":
+                    sign = "+" if bet["target"] > 0 else ""
+                    spread_str = f"{sign}{bet['target']:g}"
+                    margin_str = (f"margin {spread_margin:+d}"
+                                  if spread_margin is not None else "")
+                    if is_push:
+                        print(f"  {icon}: {bet['player']} {spread_str} PUSH"
+                              f" ({margin_str}) — ${bet['wager']:.2f} refunded")
+                    elif hit:
+                        print(f"  {icon}: {bet['player']} {spread_str} COVERED"
+                              f" ({margin_str}) — ${bet['wager']:.2f} bet -> ${payout:.2f} payout")
+                    else:
+                        print(f"  {icon}: {bet['player']} {spread_str} NO COVER"
+                              f" ({margin_str}) — ${bet['wager']:.2f} lost")
                 else:
                     if hit:
                         print(f"  {icon}: {bet['player']} {stat_val}/{bet['target']} {stat_label}"
@@ -341,15 +453,13 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
 
         parlay = parlay_map[parlay_id]
 
-        # Check if all legs' games are final
-        all_final = True
-        for leg in legs:
-            team = espn_abbr(leg.get("team", ""))
-            if team not in final_games:
-                all_final = False
-                break
+        # Resolve each leg to its post-placement final game.
+        # Use bet_games (already populated above) so the date guard is
+        # applied consistently across straight bets and parlay legs.
+        leg_games = [bet_games.get(l["id"]) for l in legs]
 
-        if not all_final:
+        # All legs must have a resolved final game
+        if any(g is None for g in leg_games):
             if not quiet:
                 leg_names = ", ".join(f"{l['player']} {l['stat']}" for l in legs)
                 print(f"  PENDING PARLAY: {leg_names} — not all games final")
@@ -358,18 +468,31 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
 
         # Evaluate each leg
         leg_results = []
-        for leg in legs:
+        for leg, leg_game in zip(legs, leg_games):
             leg_team = espn_abbr(leg.get("team", ""))
             leg_sport = leg.get("sport", "") or detect_sport(
                 leg_team, leg.get("stat", ""))
-            game_sport = final_games.get(leg_team, {}).get(
-                "sport", leg_sport or "nba")
+            game_sport = leg_game.get("sport", leg_sport or "nba")
+            leg_event_id = leg_game["event_id"]
 
             if leg["stat"] == "ML":
-                # Moneyline leg — check game winner
+                # Moneyline leg — check game winner (event-scoped)
                 sport_sb = scoreboards.get(game_sport, {})
-                ml_result = check_moneyline(sport_sb, leg_team)
+                ml_result = check_moneyline(sport_sb, leg_team, event_id=leg_event_id)
                 leg_results.append(bool(ml_result))
+                continue
+
+            if leg["stat"] == "SPREAD":
+                # Spread leg — check coverage (event-scoped)
+                sport_sb = scoreboards.get(game_sport, {})
+                covered, _margin = check_spread(
+                    sport_sb, leg_team, leg["target"], event_id=leg_event_id
+                )
+                # Treat push as a miss for parlay purposes (DK behavior:
+                # parlay drops the leg & recomputes odds, but we don't
+                # have that machinery yet — conservative treatment is
+                # safer than overpayment).
+                leg_results.append(bool(covered))
                 continue
 
             player_stats = all_player_stats.get(leg["player"])
@@ -410,18 +533,22 @@ def settle_active_bets(dry_run: bool = False, quiet: bool = False) -> dict:
             else:
                 # Show which legs missed
                 details = []
-                for leg, hit in zip(legs, leg_results):
+                for leg, leg_game, hit in zip(legs, leg_games, leg_results):
+                    mark = "HIT" if hit else "MISS"
                     if leg["stat"] == "ML":
-                        mark = "HIT" if hit else "MISS"
                         details.append(f"{leg['player']} ML ({mark})")
+                    elif leg["stat"] == "SPREAD":
+                        sign = "+" if leg["target"] > 0 else ""
+                        details.append(
+                            f"{leg['player']} {sign}{leg['target']:g} SPREAD ({mark})"
+                        )
                     else:
                         lt = espn_abbr(leg.get("team", ""))
                         ls = leg.get("sport", "") or detect_sport(
                             lt, leg.get("stat", ""))
-                        gs = final_games.get(lt, {}).get("sport", ls or "nba")
+                        gs = leg_game.get("sport", ls or "nba")
                         ps = all_player_stats.get(leg["player"], {})
                         sv = get_stat_value(ps, leg["stat"], sport=gs)
-                        mark = "HIT" if hit else "MISS"
                         details.append(f"{leg['player']} {sv}/{leg['target']} {leg['stat']} ({mark})")
                 print(f"  {icon}: Parlay — ${parlay['wager']:.2f} lost")
                 for d in details:

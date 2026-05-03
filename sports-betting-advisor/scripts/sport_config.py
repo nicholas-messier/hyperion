@@ -482,13 +482,24 @@ def get_stat_value(stats: dict, stat_key: str, sport: str = "nba"):
     return stats.get(stat_key)
 
 
-def check_moneyline(scoreboard_data: dict, team_abbr: str) -> bool | None:
+def check_moneyline(
+    scoreboard_data: dict,
+    team_abbr: str,
+    event_id: str | None = None,
+) -> bool | None:
     """Check if a team won their game (for moneyline bets).
 
     Returns True (won), False (lost), or None (game not final).
+
+    If event_id is provided, only consider that specific event. Without
+    it, the function picks the FIRST event matching the team — which
+    can match a stale game from a previous day if the scoreboard window
+    is wide. Always pass event_id when called from the auto-settler.
     """
     team_espn = espn_abbr(team_abbr)
     for event in scoreboard_data.get("events", []):
+        if event_id is not None and event.get("id") != event_id:
+            continue
         comp = event.get("competitions", [{}])[0]
         competitors = comp.get("competitors", [])
         teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
@@ -509,3 +520,67 @@ def check_moneyline(scoreboard_data: dict, team_abbr: str) -> bool | None:
         if opp_scores:
             return team_score > max(opp_scores)
     return None
+
+
+def check_spread(
+    scoreboard_data: dict,
+    team_abbr: str,
+    spread: float,
+    event_id: str | None = None,
+) -> tuple[bool | None, int | None]:
+    """Check if a team covered the spread.
+
+    Args:
+        scoreboard_data: ESPN scoreboard JSON for the appropriate sport.
+        team_abbr: Team we bet on (DK or ESPN abbreviation).
+        spread: Signed spread value. Positive for underdog (e.g., +8.5),
+                negative for favorite (e.g., -8.5).
+        event_id: Optional ESPN event id to disambiguate when the
+                  scoreboard contains multiple games involving the team
+                  (e.g., yesterday's final + today's in-progress).
+                  Always pass event_id from the auto-settler — without
+                  it, this function returns the first event matched and
+                  may settle bets against a stale game.
+
+    Returns:
+        (covered, margin) where:
+        - covered = True (covered), False (didn't cover), None if game
+          not final / push.
+        - margin = team's score differential (team_score - opp_score),
+          positive when team won, negative when team lost. None if not
+          final.
+
+    Push handling: If margin + spread == 0, returns (None, margin) to
+    signal a push. Caller should refund the wager. (Spreads with a half
+    hook like +8.5 cannot push, but integer spreads like +8 can.)
+
+    NOTE for MLB / NHL: A "spread" here is the run line / puck line,
+    typically -1.5 / +1.5. Same math applies.
+    """
+    team_espn = espn_abbr(team_abbr)
+    for event in scoreboard_data.get("events", []):
+        if event_id is not None and event.get("id") != event_id:
+            continue
+        comp = event.get("competitions", [{}])[0]
+        competitors = comp.get("competitors", [])
+        teams = [c.get("team", {}).get("abbreviation", "") for c in competitors]
+        if team_espn not in teams:
+            continue
+        status = comp.get("status", {}).get("type", {}).get("name", "")
+        if status != "STATUS_FINAL":
+            return None, None
+        scores = {c.get("team", {}).get("abbreviation", ""): int(c.get("score", 0))
+                  for c in competitors}
+        team_score = scores.get(team_espn, 0)
+        opp_scores = [s for t, s in scores.items() if t != team_espn]
+        if not opp_scores:
+            return None, None
+        margin = team_score - max(opp_scores)
+        adj = margin + spread
+        if adj > 0:
+            return True, margin
+        if adj < 0:
+            return False, margin
+        # Push (integer spread, exact tie after adjustment)
+        return None, margin
+    return None, None

@@ -49,20 +49,41 @@ Create `ersatztv.yaml` (or add to your existing compose setup):
 ```yaml
 services:
   ersatztv:
-    image: ghcr.io/ersatztv/ersatztv
+    # Pin to a digest for reproducibility. Bump with:
+    #   docker pull ghcr.io/ersatztv/ersatztv:latest
+    #   docker images --digests ghcr.io/ersatztv/ersatztv | awk '$2=="latest"{print $3}'
+    image: ghcr.io/ersatztv/ersatztv:latest@sha256:<digest>
     container_name: ersatztv
     environment:
       - TZ=America/New_York
-    devices:
-      - /dev/dri:/dev/dri  # GPU passthrough for hardware transcoding
+      # NVIDIA passthrough — see "Hardware Transcoding" section below
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     ports:
       - "8409:8409"
     volumes:
       - /path/to/config:/config
-      - /path/to/media:/data/media:ro
+      # IMPORTANT: quote both sides of the volume spec when the path has spaces.
+      # Without quoting, Docker silently creates a literal "TV\Shows" directory in
+      # the container, breaking all video reads (filler-only playback).
+      - "/path/to/media/TV Shows:/data/media/TV Shows:ro"
+      - /path/to/filler:/data/filler:ro
     tmpfs:
       - /transcode
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8409/iptv/channels.m3u >/dev/null || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 ```
 
 ### Configure Volume Paths
@@ -236,34 +257,95 @@ The media files themselves are not stored by ErsatzTV — it reads them from you
 
 ## Hardware Transcoding
 
-ErsatzTV supports hardware-accelerated transcoding for generating channel streams.
+ErsatzTV supports hardware-accelerated transcoding for generating channel streams via VAAPI (Intel/AMD), NVENC (NVIDIA), and QSV (Intel Quick Sync). This server uses NVIDIA NVENC + NVDEC.
 
-### VAAPI (Intel GPU)
+### NVIDIA (NVENC + NVDEC) — current setup
 
-The compose file already passes through `/dev/dri` for VAAPI support. Verify it is working:
-
-```bash
-# On the host, check VAAPI is available
-vainfo
-
-# Inside the container
-docker exec ersatztv vainfo
-```
-
-In the ErsatzTV web UI, go to **Settings** and enable VAAPI hardware acceleration.
-
-### Troubleshooting GPU Access
-
-If the container cannot access the GPU:
+Prerequisites on the host:
 
 ```bash
-# Check device permissions on the host
-ls -la /dev/dri/
+# NVIDIA driver (Pascal-or-newer card, GTX 1050 Ti and up)
+nvidia-smi
 
-# The container runs as a non-root user — you may need to adjust permissions
-# or add the render group
-sudo usermod -aG render $USER
+# nvidia-container-toolkit — injects NVIDIA libraries + devices into containers
+sudo apt install nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
 ```
+
+The compose snippet above gives the container access via three pieces:
+- `NVIDIA_VISIBLE_DEVICES=all` + `NVIDIA_DRIVER_CAPABILITIES=compute,video,utility`
+- `deploy.resources.reservations.devices` block with `driver: nvidia` and `capabilities: [gpu]`
+- The standard `ghcr.io/ersatztv/ersatztv:latest` image already ships with `ffmpeg --enable-nvenc --enable-nvdec --enable-cuda --enable-cuvid`. The CUDA libraries are injected at runtime by the toolkit, so no nvidia-specific image tag is required.
+
+In the ErsatzTV web UI: **Settings > FFmpeg Profiles > [your profile]** > set **Hardware Acceleration: NVENC**.
+
+### Recommended FFmpeg profile (1080p H.264 / GTX 1050 Ti)
+
+| Field | Value | Why |
+|-------|-------|-----|
+| Hardware Acceleration | `NVENC` | Use the GPU encoder |
+| Video Format | `H.264` | Broadest direct-play compatibility (Plex, iOS, Apple TV, Roku, etc.) |
+| Bit Depth | `8` | Pascal NVENC H.264 is 8-bit only; matches the converted library |
+| Resolution | `1920x1080` | Single profile for all current channels |
+| Video Bitrate | `8000` kbps | Headroom for action scenes; CBR with bufsize=8000 |
+| Video Profile | `high` | Better compression than baseline/main; supported by all modern decoders |
+| Video Preset | `p4` | NVENC quality/speed balance preset (p1=fastest, p7=highest quality) |
+| Allow B-Frames | ON | Pascal NVENC v6 supports H.264 B-frames; saves ~10% bitrate |
+| Thread Count | `1` | NVENC doesn't need many CPU threads; reduces context-switch noise |
+| Deinterlace | ON | Required for any interlaced filler/source |
+
+These can be set directly via sqlite if you prefer scripted config:
+
+```bash
+# Stop the container first so EF Core writes commit cleanly
+docker stop ersatztv
+python3 - <<'EOF'
+import sqlite3
+c = sqlite3.connect('/path/to/ersatzTV/ersatztv.sqlite3')
+c.execute("""UPDATE FFmpegProfile
+             SET HardwareAcceleration=2,  -- Nvenc
+                 VideoPreset='p4',
+                 AllowBFrames=1,
+                 ThreadCount=1,
+                 VaapiDevice=NULL,
+                 VaapiDriver=0,
+                 VaapiDisplay=NULL
+             WHERE Name='1920x1080 x264 aac';""")
+c.commit()
+EOF
+docker start ersatztv
+```
+
+### Verification
+
+```bash
+# 1. Container can see the GPU
+docker exec ersatztv nvidia-smi
+
+# 2. ffmpeg in the container has NVENC encoders
+docker exec ersatztv ffmpeg -hide_banner -encoders 2>&1 | grep -iE 'h264_nvenc|hevc_nvenc'
+
+# 3. While a channel is playing, the actual ffmpeg command should use the full
+#    CUDA pipeline. Look for "-hwaccel cuda -hwaccel_output_format cuda ... -c:v h264_nvenc":
+ps -ef | grep ffmpeg | grep -v grep
+
+# 4. nvidia-smi shows real encoder + decoder utilization (not just encoder):
+nvidia-smi --query-gpu=utilization.encoder,utilization.decoder --format=csv
+
+# 5. Conky's system panel (this repo) shows live GPU/NVENC/NVDEC stats.
+```
+
+### Common gotchas
+
+- **`[WRN] Error detecting VAAPI capabilities` on every startup is harmless** when you're running NVENC. ErsatzTV always probes VAAPI at startup regardless of the configured method.
+- **`h264_nvenc Could not open encoder` (exit -22) right after switching to NVENC** is usually a stale `VideoPreset` (empty string) or B-frame mismatch. Set Preset to `p4` and toggle Allow B-Frames.
+- **3-session NVENC limit on consumer cards.** With 3 always-on channels + a Plex transcode, you can hit the cap. See [`gpu/README.md`](../gpu/README.md) and apply `nvidia-patch-update.sh` to remove it.
+- **Volume mount paths with spaces must be quoted on both sides** in `ersatztv.yaml` (`"/host/TV Shows:/container/TV Shows:ro"`). Without quotes you'll silently get a `TV\Shows` directory inside the container and ErsatzTV will quietly serve idle filler instead of real video.
+
+### VAAPI / Intel GPU (legacy)
+
+If your server uses an Intel iGPU instead of NVIDIA, replace the `deploy.resources` block with `devices: ["/dev/dri:/dev/dri"]` and pick **Hardware Acceleration: VAAPI** in the FFmpeg profile. The rest of the workflow is the same.
 
 ---
 

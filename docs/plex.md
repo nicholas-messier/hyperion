@@ -289,6 +289,9 @@ cd ~/bin/conversion/
 # Convert MKV/AVI/etc. to MP4 (H.264 + AAC)
 ./convert_mkv_to_mp4.sh --preset=fast
 
+# With NVIDIA GPU — full CUDA decode + NVENC encode pipeline
+./convert_mkv_to_mp4.sh --hwaccel=nvenc --crf=23
+
 # Sync converted files back to the source library
 ./sync_converted.sh
 
@@ -299,6 +302,79 @@ cd ~/bin/conversion/
 This eliminates Plex transcoding for most clients (iPhone, Apple TV, Roku, web browser, etc.), reducing CPU load and enabling smooth playback on the Xeon hardware.
 
 See [../conversion/README.md](../conversion/README.md) for full conversion pipeline documentation.
+
+---
+
+## Hardware Transcoding (NVIDIA NVENC/NVDEC)
+
+Plex Media Server can offload transcoding to a NVIDIA GPU via NVENC (encode) and NVDEC (decode) when [Plex Pass](https://www.plex.tv/plex-pass/) is active. This dramatically reduces CPU load on remote-quality streams, downscaled streams, and any client that can't direct-play the source.
+
+### Preference flags
+
+Two flags in `Preferences.xml` (`/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml`) control this:
+
+| Attribute | Effect |
+|-----------|--------|
+| `HardwareAcceleratedCodecs="1"` | Enables NVDEC / VAAPI / QuickSync hardware **decoding** during transcodes |
+| `HardwareAcceleratedEncoders="1"` | Enables NVENC / VAAPI / QuickSync hardware **encoding** of the transcoded output (Plex Pass required) |
+
+To enable from the web UI: **Settings > Transcoder** > tick *"Use hardware acceleration when available"* and *"Use hardware-accelerated video encoding"*.
+
+To enable directly (server admin):
+
+```bash
+# Stop Plex
+sudo systemctl stop plexmediaserver
+
+# Back up Preferences.xml
+PREF="/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
+sudo cp -a "$PREF" "${PREF}.bak.$(date +%Y%m%d-%H%M%S)"
+
+# Edit (use python for safe attribute injection — file is single-line XML)
+sudo python3 - <<'EOF'
+import re
+p = "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
+with open(p) as f: s = f.read()
+s = re.sub(r'HardwareAcceleratedCodecs="\d+"', 'HardwareAcceleratedCodecs="1"', s)
+if 'HardwareAcceleratedCodecs' not in s:
+    s = s.replace('<Preferences ', '<Preferences HardwareAcceleratedCodecs="1" ', 1)
+if 'HardwareAcceleratedEncoders' not in s:
+    s = s.replace('HardwareAcceleratedCodecs="1"', 'HardwareAcceleratedCodecs="1" HardwareAcceleratedEncoders="1"')
+with open(p, 'w') as f: f.write(s)
+EOF
+
+# Restart
+sudo systemctl start plexmediaserver
+```
+
+### Verification
+
+```bash
+# 1. Plex's bundled ffmpeg should report cuda among its hwaccels:
+/usr/lib/plexmediaserver/Plex\ Transcoder -hwaccels 2>&1 | grep cuda
+
+# 2. While a transcode is active, nvidia-smi should show Plex Transcoder using GPU memory:
+nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
+
+# 3. nvidia-smi dmon -s u   # Live encoder/decoder utilization
+
+# 4. Plex Dashboard > Now Playing tags transcoded streams with "(hw)" for both
+#    decode and encode when this is wired up correctly.
+```
+
+### Common gotchas
+
+- **Plex Pass required for HW encoding.** HW decoding works without a pass; encoding does not. The two flags above can be set independently.
+- **No Plex Pass = encoding line will silently fall back to libx264 (CPU)** even with the flag set.
+- **First transcode auto-creates the `.nv/` cache** in `Plex Media Server/` and downloads `libh264_nvenc_encoder.so` / `libhevc_nvenc_encoder.so` into `Codecs/`. If you don't see them, no NVENC transcode has actually run yet.
+- **Consumer NVIDIA cards (e.g. GTX 1050 Ti) cap NVENC at 3 concurrent sessions.** With ErsatzTV running multiple channels + Plex transcoding for remote clients, this ceiling is realistic to hit. Apply [`gpu/nvidia-patch-update.sh`](../gpu/README.md) to remove the cap.
+- **Transcoder temp directory must be on fast storage.** This server uses `TranscoderTempDirectory="/mnt/plex_transcode"` (a 16 GB tmpfs ramdisk).
+
+### GTX 1050 Ti notes
+
+- Pascal NVENC v6 supports H.264 + HEVC (8-bit and 10-bit HEVC), B-frames in H.264, max 4K resolution.
+- No AV1 encode (added in Ada Lovelace / 40-series).
+- Pascal NVENC quality is below Turing/Ampere/Ada at the same bitrate; if visual artifacts are noticed on dialog-heavy 1080p, consider bumping `Settings > Transcoder > Maximum simultaneous video transcode` bitrate caps slightly or relying on direct-play more heavily.
 
 ---
 

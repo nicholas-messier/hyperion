@@ -125,7 +125,7 @@ apply_template() {
         sed -i \
             -e "s|__WEATHER_LOCATION__|${WEATHER_LOCATION:-Your City}|g" \
             -e "s|__SPORTS_TEAM_NAME__|${SPORTS_TEAM_NAME:-Team}|g" \
-            -e "s|__SERVER_HOSTNAME__|$(hostname)|g" \
+            -e "s|__SERVER_HOSTNAME__|${SERVER_DISPLAY_NAME:-$(hostname)}|g" \
             -e "s|__CONKY_DATA_DISK__|${CONKY_DATA_DISK:-/}|g" \
             -e "s|__CONKY_ARCHIVE_DISK__|${CONKY_ARCHIVE_DISK:-/}|g" \
             -e "s|__CONKY_EXTERNAL_DISK__|${CONKY_EXTERNAL_DISK:-/mnt/external}|g" \
@@ -133,6 +133,7 @@ apply_template() {
             -e "s|__MINECRAFT_SERVICE__|${MINECRAFT_SERVICE:-minecraft.service}|g" \
             -e "s|__ERSATZTV_CONTAINER__|${ERSATZTV_CONTAINER:-ersatztv}|g" \
             -e "s|__BIN_DIR__|${BIN_DIR:-$REPO_ROOT}|g" \
+            -e "s|__HOME_DIR__|${HOME_DIR:-$HOME}|g" \
             "$tmp"
 
         if ! diff -q "$tmp" "$dst" &>/dev/null; then
@@ -148,7 +149,7 @@ apply_template() {
     sed -i \
         -e "s|__WEATHER_LOCATION__|${WEATHER_LOCATION:-Your City}|g" \
         -e "s|__SPORTS_TEAM_NAME__|${SPORTS_TEAM_NAME:-Team}|g" \
-        -e "s|__SERVER_HOSTNAME__|$(hostname)|g" \
+        -e "s|__SERVER_HOSTNAME__|${SERVER_DISPLAY_NAME:-$(hostname)}|g" \
         -e "s|__CONKY_DATA_DISK__|${CONKY_DATA_DISK:-/}|g" \
         -e "s|__CONKY_ARCHIVE_DISK__|${CONKY_ARCHIVE_DISK:-/}|g" \
         -e "s|__CONKY_EXTERNAL_DISK__|${CONKY_EXTERNAL_DISK:-/mnt/external}|g" \
@@ -156,6 +157,7 @@ apply_template() {
         -e "s|__MINECRAFT_SERVICE__|${MINECRAFT_SERVICE:-minecraft.service}|g" \
         -e "s|__ERSATZTV_CONTAINER__|${ERSATZTV_CONTAINER:-ersatztv}|g" \
         -e "s|__BIN_DIR__|${BIN_DIR:-$REPO_ROOT}|g" \
+        -e "s|__HOME_DIR__|${HOME_DIR:-$HOME}|g" \
         "$dst"
 
     # Replace timezone placeholder with generated lines (multi-line)
@@ -192,6 +194,7 @@ chmod +x "$SCRIPT_DIR/update_weather.sh"
 chmod +x "$SCRIPT_DIR/update_celtics.sh"
 chmod +x "$SCRIPT_DIR/update_sports.py"
 chmod +x "$SCRIPT_DIR/update_sports_dashboard.py"
+chmod +x "$SCRIPT_DIR/update_gpu.sh"
 ok "Scripts are executable"
 
 # ---------- 4. Cron jobs ----------

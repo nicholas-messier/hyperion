@@ -22,6 +22,7 @@ See [`config.env.example`](../config.env.example) for available settings.
 | `conky-sports.conf` | Sports dashboard template (middle) — NBA Playoffs, active bets, bankroll status |
 | `conky-system.conf` | System stats template (left) — CPU, memory, disk, services, conversion pipeline status |
 | `conversion_status.sh` | Helper script used by conky-system to detect active conversion scripts (convert, sync, verify) |
+| `update_gpu.sh` | Polls `nvidia-smi` once and writes single-value caches under `~/.cache/gpu_*` so the system panel never blocks on GPU queries |
 | `update_weather.sh` | Fetches current conditions from NWS API -> `~/.cache/weather.txt` |
 | `update_celtics.sh` | Fetches next game + record from ESPN API -> `~/.cache/celtics_*.txt` |
 | `update_sports.py` | Smart sports display — shows live bet tracking during games, schedule otherwise |
@@ -65,7 +66,7 @@ The `.conf` files in this directory are templates. The `install.sh` script repla
 |-------------|----------------|---------|
 | `__WEATHER_LOCATION__` | `WEATHER_LOCATION` | `Your City ST` |
 | `__SPORTS_TEAM_NAME__` | `SPORTS_TEAM_NAME` | `Celtics` |
-| `__SERVER_HOSTNAME__` | (auto-detected) | `myserver` |
+| `__SERVER_HOSTNAME__` | `SERVER_DISPLAY_NAME` (falls back to `$(hostname)`) | `Hyperion` |
 | `__CONKY_DATA_DISK__` | `CONKY_DATA_DISK` | `/dev/sdc1` |
 | `__CONKY_ARCHIVE_DISK__` | `CONKY_ARCHIVE_DISK` | `/dev/sdb1` |
 | `__CONKY_EXTERNAL_DISK__` | `CONKY_EXTERNAL_DISK` | `/media/user/External` |
@@ -73,6 +74,7 @@ The `.conf` files in this directory are templates. The `install.sh` script repla
 | `__MINECRAFT_SERVICE__` | `MINECRAFT_SERVICE` | `minecraft.service` |
 | `__ERSATZTV_CONTAINER__` | `ERSATZTV_CONTAINER` | `ersatztv` |
 | `__BIN_DIR__` | `BIN_DIR` | `/home/user/bin` |
+| `__HOME_DIR__` | `HOME_DIR` (or `$HOME`) | `/home/user` |
 | `__TIMEZONE_LINES__` | `CONKY_TIMEZONES` | Generated from TZ config |
 
 ---
