@@ -24,8 +24,11 @@ import os
 import sys
 from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import requests
+
+ET_TZ = ZoneInfo("America/New_York")
 
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
@@ -138,10 +141,11 @@ def display_odds(games: list, sport: str):
         away = game.get("away_team", "Unknown")
         commence = game.get("commence_time", "")
 
-        # Parse and format game time
+        # Parse and format game time (API returns UTC; convert to ET for display)
         try:
             dt = datetime.fromisoformat(commence.replace("Z", "+00:00"))
-            game_time = dt.strftime("%a %b %d, %I:%M %p ET")
+            dt_et = dt.astimezone(ET_TZ)
+            game_time = dt_et.strftime("%a %b %d, %I:%M %p ET")
         except (ValueError, AttributeError):
             game_time = commence
 
