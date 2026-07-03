@@ -423,10 +423,16 @@ def migrate(dry_run=False):
             parts = leg_str.split(":")
             if len(parts) == 3:
                 p_name, p_stat, p_target = parts
+                # Spread / run-line / puck-line targets are floats
+                # ('-12.5'); player props are ints. Try int first.
+                try:
+                    target_val = int(p_target)
+                except ValueError:
+                    target_val = float(p_target)
                 legs_data.append({
                     "player": p_name,
                     "stat": p_stat,
-                    "target": int(p_target),
+                    "target": target_val,
                     "team": PLAYER_TEAMS.get(p_name, ""),
                 })
         if legs_data:

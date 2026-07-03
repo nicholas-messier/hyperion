@@ -544,6 +544,24 @@ def get_frequent_players(limit=10):
 
 # ── JSON sync (backward compat with conky) ───────────────────
 
+def _fmt_target(t):
+    """Format a bet target without trailing .0 for integer values.
+
+    Player prop targets are typically whole numbers ('25'); spread /
+    run-line / puck-line targets are half-points ('-12.5'). int() loses
+    the half-point, so format conditionally based on whether the value
+    is whole.
+    """
+    if t is None:
+        return ""
+    try:
+        if float(t).is_integer():
+            return str(int(t))
+        return f"{float(t):g}"
+    except (TypeError, ValueError):
+        return str(t)
+
+
 def sync_json():
     """Write current state to bankroll.json and active_bets.json.
 
@@ -580,7 +598,7 @@ def sync_json():
         })
         if b["parlay_id"]:
             parlay_legs.setdefault(b["parlay_id"], []).append(
-                f"{b['player']}:{b['stat']}:{int(b['target'])}"
+                f"{b['player']}:{b['stat']}:{_fmt_target(b['target'])}"
             )
 
     json_parlays = []

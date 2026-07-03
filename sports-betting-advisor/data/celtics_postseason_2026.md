@@ -3,9 +3,9 @@
 **Started:** April 2026 — NBA Playoffs Round 1
 **Platform:** DraftKings
 **Starting Bankroll:** $20.00
-**Current Bankroll:** $27.66 ($0.00 in play)
+**Current Bankroll:** $25.73 ($0.00 in play)
 **Advisor:** Jay Trotter
-**Scope:** All NBA Playoff games (Celtics remain the anchor)
+**Scope:** All NBA Playoff games (Celtics remain the anchor) — opportunistic non-NBA plays when data supports it
 **Base Strategy:** See [`base_strategy.md`](base_strategy.md) for universal rules (confidence tiers, bankroll management, EV framework, [bet type playbook](base_strategy.md#bet-type-playbook), hedging playbook)
 
 ---
@@ -90,19 +90,60 @@
 || May 2, 2026 | Brown 20+ PTS — WIN (33 PTS) | +$2.45 | $23.28 |
 || May 2, 2026 | BOS -8.5 spread — LOSS (BOS lost 100-109, did not cover) | $0.00 | $23.28 |
 || May 2, 2026 | PHI +8.5 spread — WIN (PHI won outright) | +$4.38 | $27.66 |
+|| May 4, 2026 | Stephon Castle Over 7.5 AST (+109) — Round 2 Game 1 vs MIN | -$3.00 | $24.66 |
+|| May 4, 2026 | Jalen Brunson Over 6.5 AST (-102) — Round 2 Game 1 vs PHI | -$2.00 | $22.66 |
+|| May 4, 2026 | Wembanyama Over 11.5 REB (-105) — Round 2 Game 1 vs MIN | -$1.00 | $21.66 |
+|| May 4, 2026 | Brunson Over 6.5 AST — LOSS | $0.00 | $21.66 |
+|| May 5, 2026 | Wembanyama Over 11.5 REB — WIN | +$1.95 | $23.61 |
+|| May 5, 2026 | Stephon Castle Over 7.5 AST — LOSS | $0.00 | $23.61 |
+|| May 6, 2026 | SGP: Brunson 25+ + Maxey 25+ + NYK -12.5 (+750 w/ 50% boost) | -$5.00 | $18.61 |
+|| May 6, 2026 | SGP (Brunson + Maxey + NYK -12.5) — LOSS | $0.00 | $18.61 |
+|| May 8, 2026 | NYK 2+ alt spread vs BOS (-108) | -$5.00 | $13.61 |
+|| May 8, 2026 | NYK 2+ alt spread vs BOS — WIN | +$9.62 | $23.23 |
+|| May 16, 2026 | Parlay: McIlroy Top 10 + Schauffele Top 10 (+125, PGA Championship final round) | -$2.00 | $21.23 |
+|| May 17, 2026 | Parlay (McIlroy Top 10 + Schauffele Top 10) — WIN | +$4.50 | $25.73 |
+|| May 19, 2026 | KAT Over 18+ PTS (-133) — ECF G1 vs CLE | -$1.00 | $24.73 |
+|| May 19, 2026 | Misiorowski Over 8+ K (-104) — MIL @ CHC | -$2.00 | $22.73 |
+|| May 19, 2026 | Brunson Over 7+ AST (-102) — ECF G1 vs CLE | -$2.50 | $20.23 |
+|| May 19, 2026 | Misiorowski Over 8+ K — WIN | +$3.92 | $24.15 |
+|| May 19, 2026 | KAT Over 18+ PTS — LOSS | $0.00 | $24.15 |
+|| May 19, 2026 | Brunson Over 7+ AST — LOSS | $0.00 | $24.15 |
+|| May 20, 2026 | Bookkeeping correction (duplicate Misio settle removed) | -$3.00 | $24.15 (ledger adj; DB had been overstated at $27.15) |
+|| May 20, 2026 | Ohtani Over 8+ K (+116) — LAD @ SD | -$2.00 | $22.15 |
+|| May 20, 2026 | Wembanyama Over 15+ REB (+110) — SAS @ OKC WCF G2 | -$2.00 | $20.15 |
 
-**Current Balance:** $27.66
+**Current Balance:** $20.15
 **Total Deposited:** $40.00
-**Total Wagered:** $139.00
-**In Play:** $0.00
-**Net Profit:** -$12.34
-**Series result:** PHI eliminates BOS 4-3 in Round 1. Brown's 33 PTS hit easy. PHI +8.5 cashed (won outright by 9). BOS -8.5 missed (got bounced).
+**Total Wagered:** $166.50
+**In Play:** $4.00
+**Net Profit:** -$15.85
+**Round 1 result:** PHI eliminates BOS 4-3. Brown's Game 7 33 PTS hit. PHI +8.5 cashed (won outright by 9). BOS -8.5 missed.
+**Round 2 Game 1 card:** 1-2 night. Wemby REB cashed (+$1.95), Castle AST (the +32% edge LOCK) and Brunson AST both missed. MIN's defense disrupted Castle's playmaking, mirroring the Jokic AST lesson from Round 1. Net for the card: -$3.05.
+**May 6 boosted SGP:** Used DK's 50% Profit Boost on a 3-leg SGP to clear the +400 minimum threshold. Stack: Brunson 25+ PTS, Maxey 25+ PTS, NYK -12.5 alt spread → original +500, boosted to +750. $5 wager — LOSS.
+**May 8 NYK alt spread vs BOS:** $5 on NYK 2+ alt spread vs Celtics in Round 2 Game 2 — CASHED (+$4.62 profit). Clean line read in a series where the Knicks defense had been pacing the Celtics' offense.
+**May 16 PGA Championship parlay (first non-NBA play of the run):** Two-leg cross-leveraged Top 10 finish bet — Rory McIlroy (-230) + Xander Schauffele (-176) for Sunday's final round. Both starting T7 at -3, 3 back of leader Alex Smalley (-6). Combined odds **+125**. Built as a parlay specifically because McIlroy at -230 violates the -200 straight-bet odds floor. Joint actual probability estimate ~65.6% vs implied 44.4% = **+21% in the Value Zone**. Tier: Strong Lean. $2 wager, To Pay $4.50.
 
 ---
 
 ## Active Bets
 
-_None — all Game 7 bets settled. Round 1 complete for our action._
+| Bet | Wager | Odds | To Pay | Game | Hit% | Edge | EV |
+|-----|-------|------|--------|------|------|------|------|
+| Shohei Ohtani Over 8+ K | $2.00 | +116 | $4.32 | LAD @ SD | 80% L5 / 57% L7 | +10-34% | +$0.46 |
+| Victor Wembanyama Over 15+ REB | $2.00 | +110 | $4.20 | SAS @ OKC WCF G2 | 80% L5 valid / 56% L9 valid | +8-33% | +$0.34 |
+
+**Total in play:** $4.00 (16.6% of $24.15 bankroll). **Combined EV: +$0.80.**
+
+**Drawdown protocol active** (after May 19 losing session, -$1.58):
+- Daily cap reduced 25%: 30% → 22.5% = $5.43
+- Lock and Strong Lean only — no Lean bets
+
+**Exposure check:**
+- Daily cap: $4.00 / $5.43 (22.5% drawdown cap) = 74% used ✓
+- Single-game (NBA SAS/OKC): $2.00 / $2.72 (50% of daily) ✓
+- Single-game (MLB LAD/SD): $2.00 / $2.72 ✓
+- Single-player max: $2.00 / $2.17 (40% of daily) ✓
+- Odds floor (-200): both plus money, well within ✓
 
 ---
 
@@ -139,9 +180,19 @@ _None — all Game 7 bets settled. Round 1 complete for our action._
 | May 2 | Brown Over 20 PTS (-441) | $2.00 | W | $2.45 | +$0.45 |
 | May 2 | PHI +8.5 spread (boosted +119) | $2.00 | W | $4.38 | +$2.38 |
 | May 2 | BOS -8.5 spread (boosted +124) — ARB | $2.00 | L | $0.00 | -$2.00 |
+| May 4 | Brunson Over 6.5 AST (-102) | $2.00 | L | $0.00 | -$2.00 |
+| May 4 | Wembanyama Over 11.5 REB (-105) | $1.00 | W | $1.95 | +$0.95 |
+| May 4 | Stephon Castle Over 7.5 AST (+109) | $3.00 | L | $0.00 | -$3.00 |
+| May 6 | SGP: Brunson 25+ + Maxey 25+ + NYK -12.5 (boosted +750) | $5.00 | L | $0.00 | -$5.00 |
+| May 8 | NYK 2+ alt spread vs BOS (-108) | $5.00 | W | $9.62 | +$4.62 |
+| May 17 | Parlay: McIlroy Top 10 + Schauffele Top 10 (+125) | $2.00 | W | $4.50 | +$2.50 |
+| May 19 | Misiorowski Over 8+ K (-104) — MIL @ CHC | $2.00 | W | $3.92 | +$1.92 |
+| May 19 | KAT Over 18+ PTS (-133) — ECF G1 vs CLE | $1.00 | L | $0.00 | -$1.00 |
+| May 19 | Brunson Over 7+ AST (-102) — ECF G1 vs CLE | $2.50 | L | $0.00 | -$2.50 |
 
-**Record:** 15-14 (22 straight bets — 12W/10L, 7 parlays — 3W/4L).
-**Running P&L:** -$12.34
+**Record:** 19-19 (29 straight bets — 15W/14L, 9 parlays — 4W/5L).
+**Running P&L:** -$15.85 (with $4.00 in play tonight on Ohtani K + Wemby REB)
+**May 19 lesson reinforced:** Two more AST/PTS NBA props busted vs an elite defense (Cavs). Pattern of AST props vs top-5 defenses keeps burning. Now five busts in this category: Jokic-MIN x2, Cade, Castle-MIN, Brunson-CLE. **Heuristic: avoid star AST props vs top-5 defensive teams unless data shows a defense-specific edge.**
 
 ---
 
@@ -249,7 +300,22 @@ Cade-to-Duren was framed as "positively correlated upside." But correlation cuts
 - Last 10 PTS: 40, 17, 34, 41, 41, 23, 19, 26, 20, 34. Only one game under 19.
 - Last 10 BLK: 2, 3, 5, 3, 3, 1, 7, 5, 5, 1. Hit 3+ blocks in 7/10 games.
 - Portland has no answer for him. This series is a mismatch.
-- **His points over is a Lock. Rebounds and blocks are strong secondary plays.**
+- **PTS line caveat (Round 2):** DK set Wemby PTS at **27.5** for Game 1 vs MIN — 4/10 hit rate at 28+. The 20.5 line was the Lock; 27.5 is a FADE. Always check the actual line vs his hit-rate breakpoints.
+- **Under 2.5 3PT is a hidden lock.** Last 10 3PM: 2, 1, 2, 2, 2, 0, 1, 1, 1, 2 → hit 3+ exactly once (in a 41-pt blowup). 9/10 = 90% on Under 2.5.
+- **His points over is a Lock at 20.5. Rebounds, blocks, and Under 3PT are strong secondary plays.**
+
+#### Stephon Castle (SAS) — "The Distributor" (Added May 4, 2026)
+| Stat | Season Avg | Last 10 Avg | Hit Rate | Prop Target |
+|------|-----------|-------------|----------|-------------|
+| Assists | ~9.0 | 9.0 | **8/10 on 8+ (80%)** | **Over 7.5 AST — LOCK** |
+| Points | ~16.5 | 16.4 | 6/10 on 17+ (60%) | Over 16.5 PTS — Lean |
+| Rebounds | ~6.6 | 6.6 | 6/10 on 6+ (60%) | Over 5.5 REB — Lean |
+
+- Sophomore PG, primary distributor for the new SAS roster (Wemby + Fox + Castle core).
+- Last 10 AST: 9, 13, 9, 5, 11, 10, 10, 9, 6, 12. **Six straight games at 9+ AST entering the playoffs.**
+- DK set Game 1 line at Over 7.5 AST at **+109 (plus money on a Lock).** That's a 32%+ edge — the kind of misprice that resets a slumping bankroll.
+- **Matchup risk:** MIN's defense (McDaniels, Conley/Dillingham backcourt) disrupts passing lanes. Edge survives even a 10% downward adjustment.
+- **First Round 2 bet placed May 4.** Will track and refine after Game 1 for matchup-specific data.
 
 ---
 
@@ -690,6 +756,39 @@ Game 7 didn't tip until 7:30 PM. The settler matched the bets against **Game 6 f
 **Recovery for tonight:** Reversed both bad settlements with proper `reversal` ledger entries (audit trail preserved), restored bets 42 + 43 to active. Bankroll: $25.21 → $20.83 with $6 in play. Auto-settler will re-evaluate them when Game 7 actually goes final.
 
 **Why this matters as a betting principle:** Local books going out of sync with DraftKings is dangerous because you stop trusting your own bankroll number. If the Game 6 fluke had gone the other way (BOS covered Game 6 but loses Game 7), we'd be celebrating a phantom $4+ profit until DraftKings settled the real bet hours later. **Always verify settlement timing matches the actual game's final time** when reviewing the ledger. If a settled_at timestamp predates the game's tip-off, the settlement is wrong.
+
+### May 4, 2026 — Session 12: Round 2 Game 1 — Castle Discovery
+
+- **Round 2 begins.** Celtics are out, but our action continues across the remaining 4 series. PHI vs NYK and MIN vs SAS both tip Game 1 tonight.
+- **User asked about NYK ML over PHI.** Knicks at -290 violated our hard -200 odds floor. Despite NYK being a real lean (PHI on a quick turnaround after a 7-game war, Knicks rested at home), the price was a tax: 74.4% implied break-even, one loss requires nearly 3 wins to recoup. **Faded the ML, redirected to player props.**
+- **PHI @ NYK prop scan:**
+  - **Brunson Over 6.5 AST (-105):** 7/10 hit rate vs 51.2% implied = +18.8% edge. Strong Lean.
+  - **Bridges Over 10.5 PTS (-102):** 7/9 active games (78%) vs 50.5% implied = +27.5% edge. Strong Lean (with role-volatility caveat).
+  - **KAT Over 19.5 PTS (-114):** 7/10 (70%) vs 53.3% implied = +16.7% edge. Strong Lean.
+  - **Brunson Under 2.5 3PT (-114):** 8/10 (80%) vs 53.3% implied = +26.7% edge. Strong Lean.
+  - Faded: Brunson Over 27.5 PTS (40% hit rate), Maxey Over 25.5 (4/10), all Embiid props (status uncertain), Paul George (limited role).
+  - **OG REB line at 6.5 looks suspicious** — his last 9 active games are 1, 2, 5, 2, 2, 3, 1, 0, 2 (0/9 on 7+). Either bad data or a role change. Flagged for verification.
+- **MIN @ SAS prop scan — found the play of the night:**
+  - **Stephon Castle Over 7.5 AST at +109:** Last 10 AST 9, 13, 9, 5, 11, 10, 10, 9, 6, 12 = 8/10 on 8+ (80%). Implied at +109 = 47.85%. **Edge of +32.1% — plus money on a Lock.** Sophomore PG running the new SAS offense alongside Wemby and Fox.
+  - **Wemby Over 11.5 REB (-105):** 8/10 hit rate (80%) vs 51.2% implied = +28.8% edge. Strong Lean. Caveat: Gobert is the one defender who can split boards with him.
+  - **Wemby Under 2.5 3PT (-136):** 9/10 (90%) vs 57.6% implied = +32.4% edge. Hidden Lock that we didn't bet tonight but logged for future reference.
+  - **CRITICAL FADE — Wemby Over 27.5 PTS (-112):** Doc previously had Wemby PTS as a Lock at the 20.5 line. DK set Game 1's line at 27.5, where his hit rate drops to 4/10 (40%) — negative EV. Even Lock-tier props become Fades when the line shifts above the breakpoint. **Lesson: always re-grade vs the actual posted line, not the cached profile.**
+- **Bets placed (Option A):**
+  - Stephon Castle Over 7.5 AST (+109): $3.00 → pays $6.27. **LOCK, +$2.02 EV.**
+  - Jalen Brunson Over 6.5 AST (-102): $2.00 → pays $3.96. Strong Lean, +$0.77 EV.
+  - Wembanyama Over 11.5 REB (-105): $1.00 → pays $1.95. Strong Lean, +$0.56 EV.
+- **Total exposure:** $6.00 (22% of bankroll, under the 30% daily cap). **Combined expected EV: +$3.35.**
+- **Diversification check:** 3 different players, 2 different games, 2 different teams in each game. No single-player concentration.
+- **Bankroll: $27.66 → $21.66 + $6.00 in play.**
+- **Lines moved between odds pull (12:41 PM) and bet placement (1:12 PM).** Castle dropped from +112 to +109 (slight worsening, still Lock). Brunson improved from -105 to -102 (~3 cents better juice). Wemby improved from -108 to -105. **Net: better juice on 2 of 3 bets.** Moves like that are normal — we're trading on real-time markets. Get the bet down on the highest-EV pick first if the line is moving against us.
+
+### Lesson Learned (May 4): Re-Grade Cached Profiles Against the Actual Posted Line
+
+When a player's profile says "Over X — LOCK" (e.g., Wemby PTS at 20.5), that's based on the historical line. **Always check what line DK is actually offering tonight before placing the bet.** If the book moves the line up to 27.5 (above the player's hit-rate breakpoint), the same player can swing from Lock to Fade on the same prop type. The profile gives us the player's *capability;* the live line tells us where the book has set the *test.* Both matter equally.
+
+### Lesson Learned (May 4): Plus Money on Locks Is the Holy Grail
+
+Stephon Castle Over 7.5 AST at +109 is the textbook bet our Value Zone framework targets. 80% hit rate at +109 (47.85% implied) = +32% edge on a positive-payout line. **One $3 winner pays $3.27 profit — over a full session of these, the bankroll compounds fast.** When a player's role isn't yet baked into the public consciousness (Castle is a sophomore on a new-look SAS roster), the books can take days to catch up. Hunt for these in Round 2 — younger players, role changes, post-trade situations. The line errors live there.
 
 ---
 

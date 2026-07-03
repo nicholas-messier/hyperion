@@ -11,6 +11,7 @@ A collection of Python scripts and an AGENTS.md personality file that turns Devi
 | `scripts/migrate_data.py` | **One-time migration** — imports existing markdown/JSON data into the SQLite database |
 | `scripts/nba_stats.py` | Fetches NBA player stats (per-game + averages) via the free nba_api. **24hr caching via SQLite.** |
 | `scripts/nfl_stats.py` | Fetches NFL player game logs from ESPN's free API. **24hr caching via SQLite.** |
+| `scripts/mlb_stats.py` | Fetches MLB batter + pitcher game logs from ESPN's free API. Includes prop hit rates (L5/L10) and two-way player support. **24hr caching via SQLite.** |
 | `scripts/odds_checker.py` | Pulls current DraftKings odds for NBA/NFL via The Odds API |
 | `scripts/live_tracker.py` | Real-time bet tracker using ESPN scoreboard API — tracks player props during live games. **Auto-settles bets in DB.** |
 | `scripts/bet_intake.py` | HTTP server + OCR pipeline — receives DraftKings screenshots from iPhone and auto-updates active bets. **Writes to DB + JSON.** |
@@ -28,6 +29,10 @@ python3 scripts/nba_stats.py --player "Stephen Curry" --season 2024
 
 # NFL stats (no API key needed)
 python3 scripts/nfl_stats.py --player "Lamar Jackson" --season 2024
+
+# MLB stats (no API key needed) — batting + pitching auto-detect
+python3 scripts/mlb_stats.py --player "Aaron Judge" --season 2026
+python3 scripts/mlb_stats.py --player "Shohei Ohtani" --season 2026 --category pitching
 
 # DraftKings odds (free API key required)
 export ODDS_API_KEY="your_key"  # Get one at https://the-odds-api.com
@@ -58,7 +63,7 @@ JSON files (`bankroll.json`, `active_bets.json`) are still written for backward 
 | Source | Cost | API Key? | Coverage |
 |--------|------|----------|----------|
 | [nba_api](https://github.com/swar/nba_api) | Free | No | NBA player stats, game logs, season averages (1946-present) |
-| [ESPN API](https://www.espn.com) | Free | No | NFL player game logs, stats, team info |
+| [ESPN API](https://www.espn.com) | Free | No | NFL + MLB player game logs, stats, team info |
 | [The Odds API](https://the-odds-api.com) | Free tier (500 req/mo) | Yes | DraftKings odds — spreads, moneylines, totals |
 
 ## Script Details
@@ -74,6 +79,16 @@ JSON files (`bankroll.json`, `active_bets.json`) are still written for backward 
 - Full season game logs with position-aware stat columns
 - Disambiguates duplicate stats (e.g., passing YDS vs rushing R_YDS)
 - Smart averages: rate stats (CMP%, QBR, RTG) show averages only, counting stats show totals + per-game
+
+### MLB Stats (`mlb_stats.py`)
+- Search any MLB player by name via ESPN
+- Auto-detects whether the player is a batter or pitcher
+- **Batter stats:** AB, R, H, 2B, 3B, HR, RBI, BB, HBP, SO, SB, CS, AVG, OBP, SLG, OPS
+- **Pitcher stats:** IP, H, R, ER, HR, BB, K, GB, FB, P, TBF, GSC, Dec, Rel, ERA
+- **Prop hit rates:** Calculates L5/L10 hit rates for common prop targets (HR Over 0.5, K Over 5.5, RBI Over 1.5, IP Over 5.5, etc.) — useful for EV math
+- **Two-way player support:** Use `--category batting` or `--category pitching` for Ohtani-types; separate caches per category
+- Smart IP aggregation: handles MLB innings notation (e.g., `5.2` = 5⅔ innings = 17 outs)
+- Rate stats (AVG/OBP/SLG/OPS/ERA) show as season values rather than misleading averages
 
 ### Odds Checker (`odds_checker.py`)
 - Real-time DraftKings odds for **NBA, NFL, MLB, and NHL**

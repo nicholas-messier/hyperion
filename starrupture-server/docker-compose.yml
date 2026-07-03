@@ -1,0 +1,26 @@
+services:
+  starrupture:
+    image: indifferentbroccoli/starrupture-server-docker:latest
+    container_name: starrupture
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # Host networking: removes Docker bridge NAT for UDP 7777/27015 (lower latency
+    # for game traffic). With host mode, the `ports:` and `dns:` directives are
+    # ignored — the container shares the host's network namespace directly.
+    network_mode: host
+    # Pin the container to CPU cores 0-7. The Unreal GameThread is single-threaded,
+    # so keeping it on a stable subset of cores improves L2/L3 cache locality and
+    # reduces cross-core migration jitter (which can show up as in-game lag spikes).
+    cpuset: "0-7"
+    env_file:
+      - .env
+    # Host's /etc/resolv.conf is a dangling symlink (systemd-resolved is inactive),
+    # so under host networking we bind-mount an explicit resolv.conf to keep Wine /
+    # EOS / Steam DNS resolution working (api.epicgames.dev etc.).
+    volumes:
+      - ./server-files:/home/steam/server-files
+      - ./resolv.conf:/etc/resolv.conf:ro
+    # NOTE: TCP 7777 is intentionally NOT exposed — it's only needed for the
+    # in-game "Manage Server" tool, which is a known security risk if reachable
+    # from the internet (see project README). USE_DSSETTINGS=true in .env
+    # replaces it with DSSettings.txt config.

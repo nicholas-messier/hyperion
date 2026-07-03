@@ -152,41 +152,12 @@ def fetch_playoff_series():
     }, timeout=10)
     resp.raise_for_status()
     data = resp.json()
-    all_events = data.get("events", [])
+    events = data.get("events", [])
 
-    # Determine current round from events with active/scheduled games
-    round_names = ["1st Round", "2nd Round", "Conf. Finals", "Finals"]
-    active_rounds = set()
-    for event in all_events:
-        comp = event["competitions"][0]
-        status = comp["status"]["type"]["name"]
-        notes = comp.get("notes", [])
-        headline = notes[0].get("headline", "") if notes else ""
-        if status in LIVE_STATUSES | {"STATUS_SCHEDULED"}:
-            for rn in round_names:
-                if rn in headline:
-                    active_rounds.add(rn)
-                    break
-
-    # Pick the earliest active round
-    current_round = None
-    for rn in round_names:
-        if rn in active_rounds:
-            current_round = rn
-            break
-
-    # Filter events to current round only
-    events = []
-    for event in all_events:
-        notes = event["competitions"][0].get("notes", [])
-        headline = notes[0].get("headline", "") if notes else ""
-        if current_round and current_round in headline:
-            events.append(event)
-
-    if not events:
-        events = all_events
-
-    # Group events by series (unique pair of teams)
+    # Group events by series (unique pair of teams). We don't filter by round
+    # name here — series with no upcoming/live games are dropped at print time
+    # which naturally hides finished rounds. TBD placeholder matchups (e.g.
+    # the Finals before participants are set) are skipped entirely.
     series_map = {}
     for event in events:
         comp = event["competitions"][0]
@@ -195,6 +166,8 @@ def fetch_playoff_series():
             continue
 
         abbrs = [c["team"]["abbreviation"] for c in competitors]
+        if "TBD" in abbrs:
+            continue
         key = tuple(sorted(abbrs))
 
         if key not in series_map:
@@ -549,11 +522,12 @@ def _live_spread_status(games, team_abbr, spread, sport=None):
 def print_playoff_section(series_list):
     """Print NBA Playoffs section for conky.
 
-    Shows only today's games and the next game day to save vertical space.
+    Shows live games and upcoming games for the next 2 days only (today +
+    tomorrow). The team-specific record header is intentionally omitted —
+    once our team is out of the bracket it adds no value.
     """
     config = read_config()
     team_abbr = config.get("SPORTS_TEAM", "BOS")
-    team_name = config.get("SPORTS_TEAM_NAME", "Celtics")
 
     # Load active bet teams for highlighting
     bet_teams = set()
@@ -568,39 +542,14 @@ def print_playoff_section(series_list):
         print("Schedule unavailable")
         return
 
-    record = get_playoff_record(series_list, team_abbr)
     print(f"${{color #00ff00}}NBA Playoffs${{color}}")
-    print(f"${{color #00ff00}}{team_name}: ({record})${{color}}")
 
     now = datetime.now(LOCAL_TZ)
     today = now.date()
+    # Strict 2-day window: today + tomorrow only
+    show_dates = {today, today + timedelta(days=1)}
 
-    # Bucket each series into its display date (live = today, else next_game date)
-    date_buckets = {}  # date -> list of series
-    for s in series_list:
-        if s["live_game"]:
-            game_date = today
-        elif s["next_game"]:
-            dt = datetime.fromisoformat(
-                s["next_game"]["date"].replace("Z", "+00:00")
-            ).astimezone(LOCAL_TZ).date()
-            game_date = dt
-        else:
-            continue
-        date_buckets.setdefault(game_date, []).append(s)
-
-    # Pick today + the next available day after today
-    show_dates = set()
-    if today in date_buckets:
-        show_dates.add(today)
-    future = sorted(d for d in date_buckets if d > today)
-    if future:
-        show_dates.add(future[0])
-
-    # If nothing today or future, show whatever we have
-    if not show_dates and date_buckets:
-        show_dates.add(min(date_buckets))
-
+    printed = 0
     for s in series_list:
         hs, ls = s["higher_seed"], s["lower_seed"]
         rec = f"{s['hs_wins']}-{s['ls_wins']}"
@@ -614,6 +563,7 @@ def print_playoff_section(series_list):
             s_hs, s_ls = sc.get(hs, "?"), sc.get(ls, "?")
             print(f"${{color #ff6600}}{matchup}"
                   f"  {s_hs}-{s_ls} {detail}${{color}}")
+            printed += 1
         elif s["next_game"]:
             dt = datetime.fromisoformat(
                 s["next_game"]["date"].replace("Z", "+00:00")
@@ -629,7 +579,11 @@ def print_playoff_section(series_list):
                       f"  {when}${{color}}")
             else:
                 print(f"{matchup}  {when}")
+            printed += 1
         # Skip series with no upcoming games
+
+    if printed == 0:
+        print(f"${{color #888888}}No games in next 2 days${{color}}")
 
 
 # ── Section 2: Active bets output ───────────────────────────
@@ -649,7 +603,7 @@ def print_bets_section(bets, parlays, game_stats, games):
     # Calculate total in play: straight bet wagers + parlay wagers
     total_wager = sum(b.get("wager", 0) for b in straight_bets)
     total_wager += sum(p.get("wager", 0) for p in parlays)
-    print(f"${{color #add8e6}}Active Bets${{color}}  $${total_wager:.0f} in play")
+    print(f"${{color #add8e6}}Active Bets${{color}}  $${total_wager:.2f} in play")
 
     # Build a per-sport map of which teams are in live/final games so a bet
     # only matches a game from the same sport (NBA BOS != MLB BOS).
@@ -696,28 +650,28 @@ def print_bets_section(bets, parlays, game_stats, games):
                     break
 
             if cur is None:
-                print(f"${{color #888888}}  ? $${wager:.0f} {short} {target_disp} {label}${{color}}")
+                print(f"${{color #888888}}  ? $${wager:.2f} {short} {target_disp} {label}${{color}}")
             elif status == "HIT":
-                print(f"${{color #00ff00}}  \u2713 $${wager:.0f} {short} {label} {cur}/{target:g}${{color}}")
+                print(f"${{color #00ff00}}  \u2713 $${wager:.2f} {short} {label} {cur}/{target:g}${{color}}")
             else:
-                print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {label} {cur}/{target:g}${{color}}")
+                print(f"${{color #ffff00}}  \u25c6 $${wager:.2f} {short} {label} {cur}/{target:g}${{color}}")
         elif team in sport_live_teams and stat == "SPREAD":
             # Live spread tracking — compute current margin vs the line (same sport only)
             margin, status = _live_spread_status(games, team, target, sport=bet_sport)
             if margin is None:
-                print(f"${{color #888888}}  ? $${wager:.0f} {short} {target_disp} SPREAD${{color}}")
+                print(f"${{color #888888}}  ? $${wager:.2f} {short} {target_disp} SPREAD${{color}}")
             elif status == "COVER":
-                print(f"${{color #00ff00}}  \u2713 $${wager:.0f} {short} {target_disp} (margin {margin:+g})${{color}}")
+                print(f"${{color #00ff00}}  \u2713 $${wager:.2f} {short} {target_disp} (margin {margin:+g})${{color}}")
             else:
-                print(f"${{color #ffff00}}  \u25c6 $${wager:.0f} {short} {target_disp} (margin {margin:+g})${{color}}")
+                print(f"${{color #ffff00}}  \u25c6 $${wager:.2f} {short} {target_disp} (margin {margin:+g})${{color}}")
         else:
             # Static display — no live game (or pre-game ML/spread bet)
             if stat == "ML":
-                print(f"  $${wager:.0f} {short} ML")
+                print(f"  $${wager:.2f} {short} ML")
             elif stat == "SPREAD":
-                print(f"  $${wager:.0f} {short} {target_disp} SPREAD")
+                print(f"  $${wager:.2f} {short} {target_disp} SPREAD")
             else:
-                print(f"  $${wager:.0f} {short} {target_disp} {label}")
+                print(f"  $${wager:.2f} {short} {target_disp} {label}")
 
     # Parlay status — show as header + indented bulleted legs
     for parlay in parlays:
@@ -731,7 +685,16 @@ def print_bets_section(bets, parlays, game_stats, games):
         for leg in legs:
             parts = leg.split(":")
             if len(parts) == 3:
-                p_name, p_stat, p_target = parts[0], parts[1], int(parts[2])
+                p_name, p_stat, p_target_str = parts[0], parts[1], parts[2]
+                # Spread / run-line / puck-line targets are floats
+                # ('-12.5'); player props are ints. Try int first.
+                try:
+                    p_target = int(p_target_str)
+                except ValueError:
+                    try:
+                        p_target = float(p_target_str)
+                    except ValueError:
+                        continue
                 short = p_name.split()[-1] if " " in p_name else p_name
                 label = "PRA" if p_stat == "PRA" else p_stat
                 # Check all live games for this player
@@ -751,7 +714,7 @@ def print_bets_section(bets, parlays, game_stats, games):
                 leg_details.append((short, label, p_target, cur, s))
 
         # Parlay header
-        prefix = f"$${wager:.0f} Parlay{' ' + name if name else ''}"
+        prefix = f"$${wager:.2f} Parlay{' ' + name if name else ''}"
         if hits == total and total > 0:
             print(f"${{color #00ff00}}  {prefix}: {hits}/{total} HIT${{color}}")
         elif hits > 0:
@@ -769,6 +732,10 @@ def print_bets_section(bets, parlays, game_stats, games):
             else:
                 if label == "ML":
                     print(f"    \u00b7 {short} {label}")
+                elif label == "SPREAD":
+                    # Spread targets are signed floats: "-12.5", "+8.5"
+                    sign = "+" if target > 0 else ""
+                    print(f"    \u00b7 {short} {sign}{target:g} {label}")
                 else:
                     print(f"    \u00b7 {short} {target}+ {label}")
 

@@ -195,6 +195,7 @@ chmod +x "$SCRIPT_DIR/update_celtics.sh"
 chmod +x "$SCRIPT_DIR/update_sports.py"
 chmod +x "$SCRIPT_DIR/update_sports_dashboard.py"
 chmod +x "$SCRIPT_DIR/update_gpu.sh"
+chmod +x "$SCRIPT_DIR/starrupture_status.sh"
 ok "Scripts are executable"
 
 # ---------- 4. Cron jobs ----------

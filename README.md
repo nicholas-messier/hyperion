@@ -39,6 +39,7 @@ See [docs/setup.md](docs/setup.md) for a full deployment walkthrough.
 | [`conky/`](conky/) | Desktop dashboard widgets — clock/weather, sports/betting dashboard, system stats (incl. live GPU NVENC/NVDEC counters) | [README](conky/README.md) |
 | [`gpu/`](gpu/) | NVIDIA GPU helpers — keylase NVENC session-limit patch wrapper and concurrent-session smoke test | [README](gpu/README.md) |
 | [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [README](sports-betting-advisor/README.md) |
+| [`starrupture-server/`](starrupture-server/) | Dockerized StarRupture dedicated game server (App ID `3809400`, runs via Wine on Linux) | [README](starrupture-server/README.md) |
 | [`docs/`](docs/) | Setup guides for Plex, ErsatzTV, Pi-hole, and deployment | [README](docs/README.md) |
 
 ---

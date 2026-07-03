@@ -1,0 +1,25 @@
+services:
+  starrupture:
+    image: indifferentbroccoli/starrupture-server-docker:latest
+    container_name: starrupture
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # Explicit DNS — host has no /etc/resolv.conf (systemd-resolved not running),
+    # so Docker's embedded resolver on user-defined bridges has no upstream.
+    # Without this, Wine fails to reach api.epicgames.dev and EOS registration fails.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    env_file:
+      - .env
+    ports:
+      # Game traffic (REQUIRED). Forward this on your router.
+      - "${STARRUPTURE_PORT:-7777}:${STARRUPTURE_PORT:-7777}/udp"
+      # Steam server browser query (recommended). Forward to be listed publicly.
+      - "${STARRUPTURE_QUERY_PORT:-27015}:${STARRUPTURE_QUERY_PORT:-27015}/udp"
+      # NOTE: TCP 7777 is intentionally NOT mapped.
+      # It is only needed for the in-game "Manage Server" tool, which is a known
+      # security risk if exposed to the internet (see project README).
+      # USE_DSSETTINGS=true in .env replaces it with DSSettings.txt config.
+    volumes:
+      - ./server-files:/home/steam/server-files

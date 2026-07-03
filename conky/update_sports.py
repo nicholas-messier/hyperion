@@ -472,8 +472,17 @@ def conky_live(games, game_stats, bets, parlays, series_list=None):
         for leg in legs:
             parts = leg.split(":")
             if len(parts) == 3:
+                # Spread / run-line / puck-line targets are floats
+                # ('-12.5'); player props are ints. Try int first.
+                try:
+                    target = int(parts[2])
+                except ValueError:
+                    try:
+                        target = float(parts[2])
+                    except ValueError:
+                        continue
                 for stats in game_stats.values():
-                    _, s = eval_bet(stats, parts[0], parts[1], int(parts[2]))
+                    _, s = eval_bet(stats, parts[0], parts[1], target)
                     if s == "HIT":
                         hits += 1
                         break

@@ -84,6 +84,41 @@ python3 scripts/nfl_stats.py --player "Patrick Mahomes" --season 2024 --cache-st
 
 **When to use:** Before making NFL player prop recommendations, checking matchup history, or evaluating recent performance. Data is automatically cached for 24 hours.
 
+### 2b. MLB Player Stats (`scripts/mlb_stats.py`)
+Fetches individual MLB player stats — batting AND pitching — from ESPN's free API. No API key required. Auto-detects whether the player is a batter or pitcher. Handles two-way players (Ohtani-types) with `--category` override.
+
+**Usage:**
+```bash
+# Default: auto-detects batter or pitcher (auto-cached 24 hours)
+python3 scripts/mlb_stats.py --player "Aaron Judge" --season 2026
+
+# Last 10 games only
+python3 scripts/mlb_stats.py --player "Paul Skenes" --season 2026 --last 10
+
+# Season averages + hit rates (no game log)
+python3 scripts/mlb_stats.py --player "Bryce Harper" --season 2026 --averages-only
+
+# Two-way player — explicitly choose category
+python3 scripts/mlb_stats.py --player "Shohei Ohtani" --season 2026 --category batting
+python3 scripts/mlb_stats.py --player "Shohei Ohtani" --season 2026 --category pitching
+
+# Force fresh API call (ignore cache)
+python3 scripts/mlb_stats.py --player "Aaron Judge" --season 2026 --refresh
+
+# Cache status (shows both batting and pitching cache for two-way players)
+python3 scripts/mlb_stats.py --player "Shohei Ohtani" --season 2026 --cache-status
+```
+
+**Stats returned:**
+- **Batter:** AB, R, H, 2B, 3B, HR, RBI, BB, HBP, SO, SB, CS, AVG, OBP, SLG, OPS
+- **Pitcher:** IP, H, R, ER, HR, BB, K, GB, FB, P, TBF, GSC, Dec, Rel, ERA
+
+**Prop hit rates (auto-calculated for L5 and L10):**
+- **Batter:** HR O0.5, HR O1.5, RBI O0.5/1.5/2.5, R O0.5/1.5, SB O0.5, H O0.5/1.5/2.5, BB O0.5, SO O1.5, 2B O0.5
+- **Pitcher:** K O4.5/5.5/6.5/7.5, IP O4.5/5.5/6.5, ER O1.5/2.5/3.5, BB O1.5/2.5, H O4.5/5.5/6.5
+
+**When to use:** Before making MLB player prop recommendations, especially strikeout props (K Over 5.5/6.5) for pitchers and HR/RBI/H props for hitters. The L5/L10 hit-rate breakdown gives the exact data needed for EV math against DK's lines. Data is automatically cached for 24 hours.
+
 ### 3. DraftKings Odds Checker (`scripts/odds_checker.py`)
 Fetches current DraftKings odds for NBA, NFL, and MLB games. Requires a free API key from The Odds API.
 
@@ -182,6 +217,9 @@ python3 scripts/bet_intake.py --clear
 5. Looks up player teams via ESPN search API if not found in OCR text
 6. Writes to SQLite DB (primary) and JSON file (backward compat)
 7. Raw OCR output saved to `~/.cache/sports-bets/intake/` for debugging
+
+**Known limitations:**
+- **Golf bets are not yet parsed automatically.** OCR captures the text fine (e.g., `Rory Mcllroy / Live Top 10 (Including Ties)`), but the parser has no golf format handling. For golf bets (Top 10/20, head-to-head matchups, outrights), record manually via `db.record_bet()` or `db.record_parlay()` — see the `--file` flag's debug output to verify OCR text, then use the db module directly. Future work: add golf bet detection to `scripts/bet_intake.py`.
 
 **When to use:** When the user sends a DraftKings bet slip screenshot from their phone. The iOS Shortcut POSTs the image to this server. Can also be used to manually ingest local screenshot files.
 

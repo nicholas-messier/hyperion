@@ -32,6 +32,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -646,6 +647,29 @@ def _extract_spread_leg_odds(line, spread_val):
     return None
 
 
+def _derive_odds_from_payout(wager, to_pay):
+    """Convert wager + total payout into American odds.
+
+    DK shows "Wager: $5.00" and "To Pay: $42.50" on every slip. The
+    To Pay reflects the actual odds DK is honoring — including any
+    profit boost — so this is the most reliable odds source.
+
+    Returns signed integer American odds, or None if inputs are missing
+    or inconsistent (e.g., to_pay <= wager which would imply a non-bet).
+    """
+    if not wager or not to_pay:
+        return None
+    if to_pay <= wager:
+        return None
+    profit = to_pay - wager
+    if profit >= wager:
+        # Positive odds: profit / wager * 100
+        return int(round(profit / wager * 100))
+    else:
+        # Negative odds: -wager / profit * 100
+        return -int(round(wager / profit * 100))
+
+
 def _score_ocr_text(text):
     """Score OCR text by how many bet-relevant components it contains.
 
@@ -716,6 +740,14 @@ def parse_betslip(text):
                 wager = float(m.group(1))
                 break
 
+    # ── Scan for "To Pay" amount (used to derive boosted odds) ─
+    to_pay = None
+    for line in cleaned:
+        m = re.search(r"[Tt]o\s*[Pp]ay[:\s]*\$(\d+\.?\d*)", line)
+        if m:
+            to_pay = float(m.group(1))
+            break
+
     # ── Check for parlay indicator ───────────────────────────
     if re.search(r"\d+\s*[-_ ]?\s*(?:Pick|Leg)\s+Par(?:lay|l?a?y?)", text, re.I):
         is_parlay = True
@@ -724,15 +756,19 @@ def parse_betslip(text):
     elif re.search(r"[Pp]ar(?:lay|l?a?y?)\s*\+\d+", text, re.I):
         is_parlay = True
 
-    # ── Extract odds from text (e.g., "-151", "+200") ──────────
-    odds_value = None
-    for line in cleaned:
-        m = re.search(r"([+-]\d{3})", line)
-        if m:
-            val = int(m.group(1))
-            if -1000 < val < -100 or 100 < val < 1000:
-                odds_value = val
-                break
+    # ── Determine the slip's effective odds ──────────────────
+    # Prefer odds derived from wager + To Pay (this captures profit
+    # boosts — DK shows the boosted "To Pay" but lists the original
+    # odds too). Fall back to scanning text for "[+-]ddd" patterns.
+    odds_value = _derive_odds_from_payout(wager, to_pay)
+    if odds_value is None:
+        for line in cleaned:
+            m = re.search(r"([+-]\d{3,4})", line)
+            if m:
+                val = int(m.group(1))
+                if -10000 < val < -100 or 100 < val < 10000:
+                    odds_value = val
+                    break
 
     # ── Strategy 0a: Detect spread / run line / puck line bets ─
     # Look for "Spread"/"Run Line"/"Puck Line" keyword near a team
@@ -782,7 +818,11 @@ def parse_betslip(text):
         if player and stat:
             player_stats.append((player, stat, i))
 
-    # Pair targets with player+stat by proximity (target before its player)
+    # Pair targets with player+stat by proximity (target before its player).
+    # Note: we deliberately leave team="" here for player props and rely on
+    # the ESPN lookup later. Auto-assigning the only OCR-detected team is
+    # wrong for multi-game parlays where (e.g.) the spread is on NYK but
+    # one of the player-prop legs is on a player from a different team.
     if targets and player_stats:
         used = set()
         for player, stat, ps_idx in player_stats:
@@ -798,9 +838,8 @@ def parse_betslip(text):
             target = targets[best_t][0] if best_t is not None else 0
             if best_t is not None:
                 used.add(best_t)
-            team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
             bets.append({
-                "player": player, "team": team,
+                "player": player, "team": "",
                 "stat": stat, "target": target, "wager": 0,
                 "odds": odds_value,
             })
@@ -810,9 +849,8 @@ def parse_betslip(text):
         # during image preprocessing, garbling the "N+" target.
         # Create the bet anyway so it isn't silently dropped.
         for player, stat, ps_idx in player_stats:
-            team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
             bets.append({
-                "player": player, "team": team,
+                "player": player, "team": "",
                 "stat": stat, "target": 0, "wager": 0,
                 "odds": odds_value,
             })
@@ -852,9 +890,8 @@ def parse_betslip(text):
                 sval = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
                 if sval:
                     target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
-                    team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
                     bets.append({
-                        "player": pname, "team": team,
+                        "player": pname, "team": "",
                         "stat": sval, "target": target, "wager": 0,
                     })
                     current_player = None
@@ -868,9 +905,8 @@ def parse_betslip(text):
                 sval = STAT_MAP.get(stat_text) or STAT_MAP.get(stat_text + "s", "")
                 if sval:
                     target = int(target_raw) + (1 if target_raw != int(target_raw) else 0)
-                    team = list(found_teams.keys())[0] if len(found_teams) == 1 else ""
                     bets.append({
-                        "player": current_player, "team": team,
+                        "player": current_player, "team": "",
                         "stat": sval, "target": target, "wager": 0,
                     })
                     current_player = None
@@ -901,7 +937,12 @@ def parse_betslip(text):
     parlays = []
     if is_parlay and len(bets) > 1:
         legs = [f"{b['player']}:{b['stat']}:{b['target']}" for b in bets]
-        parlays.append({"name": "", "legs": legs, "wager": wager or 0})
+        parlays.append({
+            "name": "",
+            "legs": legs,
+            "wager": wager or 0,
+            "odds": odds_value or 0,
+        })
 
     # ── Fill in missing teams via ESPN player search ─────────
     # Also clean player names: OCR noise from headshot areas can
@@ -967,13 +1008,28 @@ def update_active_bets(new_bets, new_parlays, mode="append"):
 
 # ── Database integration ─────────────────────────────────────
 
+def _parse_target(target_str):
+    """Parse a leg target string into int or float.
+
+    Player prop targets are typically integers ('25', '10').
+    Spread / run line / puck line targets are floats ('-12.5', '+8.5').
+    """
+    try:
+        return int(target_str)
+    except ValueError:
+        return float(target_str)
+
+
 def _write_to_db(bets, parlays):
     """Write parsed bets to the SQLite database.
 
-    Falls back silently if the DB module is unavailable.
+    Returns True if the write succeeded (or was skipped because no DB
+    module is available — a no-op success). Returns False if a real
+    exception occurred during the write so the caller can fall back to
+    the JSON-only path.
     """
     if not _HAS_DB:
-        return
+        return False
 
     try:
         _init_db()
@@ -985,7 +1041,8 @@ def _write_to_db(bets, parlays):
                 parts = leg_str.split(":")
                 if len(parts) == 3:
                     # Find matching bet to get team and sport
-                    p_name, p_stat, p_target = parts[0], parts[1], int(parts[2])
+                    p_name, p_stat = parts[0], parts[1]
+                    p_target = _parse_target(parts[2])
                     leg_team = ""
                     leg_sport = "nba"
                     for b in bets:
@@ -1002,7 +1059,8 @@ def _write_to_db(bets, parlays):
                         "sport": leg_sport,
                     })
             if legs:
-                _db_record_parlay(legs=legs, wager=parlay.get("wager", 0))
+                _db_record_parlay(legs=legs, wager=parlay.get("wager", 0),
+                                  odds=parlay.get("odds", 0))
 
         # Record straight bets (skip parlay legs with wager == 0)
         for bet in bets:
@@ -1018,8 +1076,11 @@ def _write_to_db(bets, parlays):
                 )
 
         _db_sync_json()
-    except Exception:
-        pass  # DB write failed — JSON file is the fallback
+        return True
+    except Exception as e:
+        sys.stderr.write(f"[intake] DB write failed: {e!r}\n")
+        traceback.print_exc(file=sys.stderr)
+        return False
 
 
 # ── Full pipeline ────────────────────────────────────────────
@@ -1055,16 +1116,19 @@ def process_image(image_path, mode="append"):
     bets, parlays = parse_betslip(raw_text)
 
     # Write to SQLite DB (primary) — sync_json() updates active_bets.json
-    # automatically.  Only fall back to direct JSON write when DB is
-    # unavailable so we don't double-write and create duplicates.
-    if _HAS_DB:
-        _write_to_db(bets, parlays)
-        # Read back the synced JSON for the return value
+    # automatically. If DB write fails (or DB module missing), fall back
+    # to writing the JSON file directly so the bet is still persisted.
+    db_ok = _write_to_db(bets, parlays) if _HAS_DB else False
+    if db_ok:
         try:
             active = json.loads(BETS_FILE.read_text())
         except (json.JSONDecodeError, FileNotFoundError):
             active = {"bets": bets, "parlays": parlays}
     else:
+        if _HAS_DB:
+            sys.stderr.write(
+                "[intake] DB write failed — falling back to JSON write\n"
+            )
         active = update_active_bets(bets, parlays, mode)
 
     return {
@@ -1073,6 +1137,7 @@ def process_image(image_path, mode="append"):
         "parlays": parlays,
         "active_bets": active,
         "ocr_file": str(ocr_path),
+        "db_ok": db_ok,
     }
 
 
@@ -1143,10 +1208,41 @@ class BetIntakeHandler(BaseHTTPRequestHandler):
             img_path = str(INTAKE_DIR / f"{ts}{ext}")
             Path(img_path).write_bytes(body)
 
-            result = process_image(img_path, mode="append")
+            try:
+                result = process_image(img_path, mode="append")
+            except Exception as e:
+                sys.stderr.write(f"[intake] process_image failed: {e!r}\n")
+                traceback.print_exc(file=sys.stderr)
+                self._json_response(500, {
+                    "status": "error",
+                    "error": str(e),
+                    "image_saved": img_path,
+                })
+                return
+
+            bets_found = len(result["bets"])
+            parlays_found = len(result["parlays"])
+            persisted = (
+                bool(result.get("active_bets", {}).get("bets"))
+                or bool(result.get("active_bets", {}).get("parlays"))
+            )
+
+            if bets_found == 0 and parlays_found == 0:
+                # Nothing parseable — return 422 so the client knows
+                # the upload was received but no bets were extracted.
+                self._json_response(422, {
+                    "status": "no_bets_parsed",
+                    "bets_found": 0,
+                    "raw_text_preview": result["raw_text"][:500],
+                    "ocr_file": result.get("ocr_file"),
+                })
+                return
+
             self._json_response(200, {
-                "status": "processed",
-                "bets_found": len(result["bets"]),
+                "status": "processed" if persisted else "parsed_not_saved",
+                "bets_found": bets_found,
+                "parlays_found": parlays_found,
+                "db_ok": result.get("db_ok", False),
                 "bets": result["bets"],
                 "parlays": result["parlays"],
                 "raw_text_preview": result["raw_text"][:500],

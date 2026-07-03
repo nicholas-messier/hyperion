@@ -8,6 +8,7 @@ __pycache__/
 # Environment / Secrets
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.crt
@@ -24,6 +25,11 @@ Thumbs.db
 .windsurf/
 GPU-LOCKUP-FIX-PLAN.md
 GPU-UPGRADE-GUIDE.md
+
+# StarRupture dedicated server install + saves (~20 GB)
+starrupture-server/server-files/
+# StarRupture host-side SteamCMD state cache
+starrupture-server/.steamcmd-state/
 
 # Editors
 *.swp

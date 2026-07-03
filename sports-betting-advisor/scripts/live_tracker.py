@@ -140,7 +140,16 @@ def load_active_bets():
             parts = leg.split(":")
             if len(parts) != 3:
                 continue
-            p_name, p_stat, p_target = parts[0], parts[1], int(parts[2])
+            p_name, p_stat, p_target_str = parts[0], parts[1], parts[2]
+            # Spread / run-line / puck-line targets are floats (e.g.
+            # "-12.5"); player props are ints. Try int first, then float.
+            try:
+                p_target = int(p_target_str)
+            except ValueError:
+                try:
+                    p_target = float(p_target_str)
+                except ValueError:
+                    continue
             for entry in result:
                 if (entry["player"] == p_name
                         and entry["stat"] == p_stat
@@ -308,16 +317,25 @@ def _team_winning_now(teams, team_abbr):
 
 
 def parse_bet_string(bet_str):
-    """Parse a bet string like 'Jayson Tatum:REB:10:3.00'."""
+    """Parse a bet string like 'Jayson Tatum:REB:10:3.00'.
+
+    Spread / run-line / puck-line bets use float targets ('-12.5'),
+    player props use int targets ('25').
+    """
     parts = bet_str.split(":")
     if len(parts) != 4:
         print(f"  Invalid bet format: {bet_str}")
         print(f"  Expected: 'Player Name:STAT:TARGET:WAGER'")
         sys.exit(1)
+    target_str = parts[2].strip()
+    try:
+        target = int(target_str)
+    except ValueError:
+        target = float(target_str)
     return {
         "player": parts[0].strip(),
         "stat": parts[1].strip().upper(),
-        "target": int(parts[2].strip()),
+        "target": target,
         "wager": float(parts[3].strip()),
     }
 
