@@ -76,6 +76,29 @@ def add_log(
         "notes": notes or ""
     }
 
+def add_logs_batch(entries: List[Dict[str, Any]]) -> int:
+    inserted = 0
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        for item in entries:
+            blood = item.get("blood", "none")
+            bristol = int(item.get("bristol", 4))
+            pain = int(item.get("pain", 1))
+            notes = item.get("notes", "")
+            ts = item.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            if blood in ("none", "some", "alot") and (1 <= bristol <= 7) and (1 <= pain <= 10):
+                cursor.execute(
+                    """
+                    INSERT INTO logs (timestamp, bristol, pain, blood, notes)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (ts, bristol, pain, blood, notes or "")
+                )
+                inserted += 1
+        conn.commit()
+    return inserted
+
 def get_today_count(target_date: Optional[str] = None) -> int:
     today_str = target_date or datetime.now().astimezone().strftime("%Y-%m-%d")
     with get_connection() as conn:

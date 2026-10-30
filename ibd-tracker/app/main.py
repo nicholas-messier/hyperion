@@ -1,11 +1,12 @@
 import csv
 import io
+import json
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import FastAPI, Header, HTTPException, Query, Security, status
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -85,6 +86,52 @@ def create_log(
         )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@app.post("/api/logs/batch", status_code=status.HTTP_201_CREATED)
+async def create_logs_batch(
+    request: Request,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
+    api_key: Optional[str] = Query(None)
+):
+    verify_api_key(x_api_key, api_key)
+    body_bytes = await request.body()
+    if not body_bytes:
+        return {"status": "success", "imported_count": 0, "message": "No data received."}
+    
+    text = body_bytes.decode("utf-8", errors="replace").strip()
+    entries = []
+    
+    try:
+        data = json.loads(text)
+        if isinstance(data, list):
+            entries = data
+        elif isinstance(data, dict):
+            if "logs" in data and isinstance(data["logs"], list):
+                entries = data["logs"]
+            elif "bristol" in data:
+                entries = [data]
+            else:
+                entries = [data]
+    except Exception:
+        # Fallback: Parse line-by-line (e.g. newline-delimited JSON from repeated Shortcut appends)
+        for line in text.splitlines():
+            line = line.strip().rstrip(",")
+            if line:
+                try:
+                    obj = json.loads(line)
+                    if isinstance(obj, dict):
+                        entries.append(obj)
+                    elif isinstance(obj, list):
+                        entries.extend(obj)
+                except Exception:
+                    continue
+
+    count = database.add_logs_batch(entries)
+    return {
+        "status": "success",
+        "imported_count": count,
+        "message": f"Successfully imported {count} offline log entries."
+    }
 
 @app.get("/api/today", response_model=TodayResponse)
 def get_today(

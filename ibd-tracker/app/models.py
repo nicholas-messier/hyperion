@@ -25,6 +25,11 @@ class LogCreateResponse(BaseModel):
     today_count: int
     message: str
 
+class BatchLogResponse(BaseModel):
+    status: str
+    imported_count: int
+    message: str
+
 class TodayResponse(BaseModel):
     today_count: int
     date: str
