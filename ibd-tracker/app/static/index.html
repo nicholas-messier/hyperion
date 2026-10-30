@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IBD Symptom & Bowel Movement Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <div class="logo-icon">🩺</div>
+                <div>
+                    <h1>IBD Symptom & BM Tracker</h1>
+                    <p class="subtitle">Clinical Gastrointestinal Monitoring & Analytics</p>
+                </div>
+            </div>
+            <div class="header-actions no-print">
+                <button class="btn btn-primary" id="openLogModalBtn">+ Log Movement</button>
+                <button class="btn btn-outline" id="printReportBtn">🖨️ Print Doctor Report</button>
+                <a href="/api/export?format=csv" class="btn btn-secondary" id="exportCsvBtn">📥 Export CSV</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Print Header (Visible only on print/PDF) -->
+        <div class="print-header">
+            <h2>Gastrointestinal Symptom & Bowel Movement Clinical Summary</h2>
+            <div class="print-meta">
+                <p><strong>Patient Report Period:</strong> <span id="printDateRange">Last 30 Days</span></p>
+                <p><strong>Generated on:</strong> <span id="printGenDate"></span></p>
+                <p><strong>Prepared for:</strong> Dr. Vincent Aguirre (GI) / Dr. David Gould (Colorectal)</p>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <section class="controls-bar no-print">
+            <div class="filter-group">
+                <label for="timeRangeSelect">Time Window:</label>
+                <select id="timeRangeSelect" class="select-input">
+                    <option value="7">Last 7 Days</option>
+                    <option value="14">Last 14 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="status-indicator">
+                <span class="live-dot"></span>
+                <span>Server Connected &bull; <strong id="todayCountBadge">0</strong> BMs Today</span>
+            </div>
+        </section>
+
+        <!-- Key Metrics Cards -->
+        <section class="metrics-grid">
+            <div class="card metric-card">
+                <div class="metric-title">Today's Movements</div>
+                <div class="metric-value" id="metricTodayCount">0</div>
+                <div class="metric-sub" id="metricTodayStatus">Awaiting entries</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-title">Avg Frequency</div>
+                <div class="metric-value" id="metricAvgDaily">0.0</div>
+                <div class="metric-sub">movements / day</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-title">Avg Bristol Score</div>
+                <div class="metric-value" id="metricAvgBristol">--</div>
+                <div class="metric-sub" id="metricBristolLabel">--</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-title">Avg Pain Level</div>
+                <div class="metric-value" id="metricAvgPain">--</div>
+                <div class="metric-sub">scale (1 - 10)</div>
+            </div>
+            <div class="card metric-card">
+                <div class="metric-title">Blood Incidence</div>
+                <div class="metric-value" id="metricBloodPct">0%</div>
+                <div class="metric-sub" id="metricBloodEvents">0 total events</div>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-grid">
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h3>Daily Bowel Movement Frequency</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h3>Bristol Consistency & Pain Severity Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Doctor Summary Table -->
+        <section class="card table-card">
+            <div class="card-header">
+                <h3>Daily Breakdown & Clinical Summary</h3>
+                <span class="card-tag" id="tableWindowLabel">Last 30 Days</span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table" id="dailyTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Total Movements</th>
+                            <th>Avg Bristol Scale</th>
+                            <th>Avg Pain</th>
+                            <th>Max Pain</th>
+                            <th>Blood Occurrence</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyTableBody">
+                        <tr><td colspan="6" class="text-center">Loading daily records...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recent Log Entries (Interactive & Delete option) -->
+        <section class="card table-card no-print">
+            <div class="card-header">
+                <h3>Recent Intake Logs</h3>
+                <span class="text-muted">Latest 50 recorded entries</span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table" id="recentTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Bristol Scale</th>
+                            <th>Pain</th>
+                            <th>Blood</th>
+                            <th>Notes</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentTableBody">
+                        <tr><td colspan="6" class="text-center">Loading logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Bristol Reference Guide for Consultation -->
+        <section class="card bristol-guide-card">
+            <div class="card-header">
+                <h3>Bristol Stool Form Scale Reference</h3>
+            </div>
+            <div class="bristol-grid">
+                <div class="bristol-item constipated">
+                    <div class="b-type">Type 1</div>
+                    <div class="b-desc">Separate hard lumps, like nuts (hard to pass). Severe Constipation.</div>
+                </div>
+                <div class="bristol-item constipated">
+                    <div class="b-type">Type 2</div>
+                    <div class="b-desc">Sausage-shaped, but lumpy. Mild Constipation.</div>
+                </div>
+                <div class="bristol-item normal">
+                    <div class="b-type">Type 3</div>
+                    <div class="b-desc">Like a sausage with cracks on surface. Normal.</div>
+                </div>
+                <div class="bristol-item normal">
+                    <div class="b-type">Type 4</div>
+                    <div class="b-desc">Smooth, soft snake or sausage. Optimal Normal.</div>
+                </div>
+                <div class="bristol-item diarrhea">
+                    <div class="b-type">Type 5</div>
+                    <div class="b-desc">Soft blobs with clear-cut edges. Lacking fiber.</div>
+                </div>
+                <div class="bristol-item diarrhea">
+                    <div class="b-type">Type 6</div>
+                    <div class="b-desc">Fluffy pieces with ragged edges, a mushy stool. Mild Diarrhea.</div>
+                </div>
+                <div class="bristol-item diarrhea">
+                    <div class="b-type">Type 7</div>
+                    <div class="b-desc">Watery, no solid pieces. Entirely liquid. Severe Diarrhea.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Manual Log Entry Modal -->
+    <div class="modal-overlay" id="logModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>Log Bowel Movement</h2>
+                <button class="close-btn" id="closeLogModalBtn">&times;</button>
+            </div>
+            <form id="logForm">
+                <div class="form-group">
+                    <label>Bristol Consistency Score (1–7): <span id="bristolValueDisplay" class="badge badge-normal">4 - Normal Soft Snake</span></label>
+                    <div class="bristol-selector" id="bristolSelector">
+                        <button type="button" class="btn-select" data-val="1">1</button>
+                        <button type="button" class="btn-select" data-val="2">2</button>
+                        <button type="button" class="btn-select" data-val="3">3</button>
+                        <button type="button" class="btn-select active" data-val="4">4</button>
+                        <button type="button" class="btn-select" data-val="5">5</button>
+                        <button type="button" class="btn-select" data-val="6">6</button>
+                        <button type="button" class="btn-select" data-val="7">7</button>
+                    </div>
+                    <input type="hidden" id="bristolInput" name="bristol" value="4">
+                </div>
+
+                <div class="form-group">
+                    <label for="painRange">Pain Level (1–10): <strong id="painValueDisplay">1</strong> / 10</label>
+                    <input type="range" id="painRange" name="pain" min="1" max="10" value="1" class="range-slider">
+                    <div class="range-scale">
+                        <span>1 (None/Mild)</span>
+                        <span>5 (Moderate)</span>
+                        <span>10 (Severe)</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Blood Presence:</label>
+                    <div class="radio-pill-group" id="bloodSelector">
+                        <label class="radio-pill active">
+                            <input type="radio" name="blood" value="none" checked> None
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="blood" value="some"> Some / Trace
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="blood" value="alot"> A Lot
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notesInput">Notes / Context (Optional):</label>
+                    <input type="text" id="notesInput" name="notes" placeholder="e.g. after lunch, cramping, urgency" class="text-input">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="cancelModalBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveLogBtn">Save Movement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

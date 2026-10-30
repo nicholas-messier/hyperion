@@ -31,6 +31,11 @@ starrupture-server/server-files/
 # StarRupture host-side SteamCMD state cache
 starrupture-server/.steamcmd-state/
 
+# IBD Tracker database & storage
+ibd-tracker/data/
+*.db
+*.sqlite3
+
 # Editors
 *.swp
 *.swo
