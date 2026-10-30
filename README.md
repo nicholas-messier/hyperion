@@ -40,6 +40,7 @@ See [docs/setup.md](docs/setup.md) for a full deployment walkthrough.
 | [`gpu/`](gpu/) | NVIDIA GPU helpers — keylase NVENC session-limit patch wrapper and concurrent-session smoke test | [README](gpu/README.md) |
 | [`sports-betting-advisor/`](sports-betting-advisor/) | Data-driven NBA/NFL betting analysis with live stats and DraftKings odds | [README](sports-betting-advisor/README.md) |
 | [`starrupture-server/`](starrupture-server/) | Dockerized StarRupture dedicated game server (App ID `3809400`, runs via Wine on Linux) | [README](starrupture-server/README.md) |
+| [`ibd-tracker/`](ibd-tracker/) | Self-hosted IBD symptom & bowel movement tracker with iOS Shortcut 1-tap logging and doctor analytics dashboard | [README](ibd-tracker/README.md) |
 | [`docs/`](docs/) | Setup guides for Plex, ErsatzTV, Pi-hole, and deployment | [README](docs/README.md) |
 
 ---
