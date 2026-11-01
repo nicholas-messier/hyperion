@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IBD Symptom & Bowel Movement Tracker</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=4">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -22,6 +22,7 @@
                 <button class="btn btn-primary" id="openLogModalBtn">+ Log Movement</button>
                 <button class="btn btn-outline" id="printReportBtn">🖨️ Print Doctor Report</button>
                 <a href="/api/export?format=csv" class="btn btn-secondary" id="exportCsvBtn">📥 Export CSV</a>
+                <button class="btn btn-secondary" id="apiKeyBtn" title="Set or update API key">🔑 Key</button>
             </div>
         </div>
     </header>
@@ -31,7 +32,7 @@
         <div class="print-header">
             <h2>Gastrointestinal Symptom & Bowel Movement Clinical Summary</h2>
             <div class="print-meta">
-                <p><strong>Patient Report Period:</strong> <span id="printDateRange">Last 30 Days</span></p>
+                <p><strong>Patient Report Period:</strong> <span id="printDateRange">Last 30 Days</span> (<span id="printActiveDays">0 active logging days</span>)</p>
                 <p><strong>Generated on:</strong> <span id="printGenDate"></span></p>
                 <p><strong>Prepared for:</strong> Dr. Vincent Aguirre (GI) / Dr. David Gould (Colorectal)</p>
             </div>
@@ -64,7 +65,7 @@
             <div class="card metric-card">
                 <div class="metric-title">Avg Frequency</div>
                 <div class="metric-value" id="metricAvgDaily">0.0</div>
-                <div class="metric-sub">movements / day</div>
+                <div class="metric-sub" id="metricAvgDailySub">movements / active day</div>
             </div>
             <div class="card metric-card">
                 <div class="metric-title">Avg Bristol Score</div>
@@ -251,9 +252,32 @@
         </div>
     </div>
 
+    <!-- API Key Modal -->
+    <div class="modal-overlay" id="apiKeyModal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>API Key Authentication</h2>
+                <button class="close-btn" id="closeApiKeyModalBtn">&times;</button>
+            </div>
+            <form id="apiKeyForm">
+                <div class="form-group">
+                    <label for="apiKeyInput">Enter Server API Key:</label>
+                    <input type="password" id="apiKeyInput" placeholder="Enter API Key from .env" class="text-input" autocomplete="off">
+                    <p class="subtitle" style="font-size: 0.85rem; margin-top: 0.5rem; color: #64748b;">
+                        Stored securely in your local browser storage to authenticate dashboard requests.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" id="clearApiKeyBtn">Clear Key</button>
+                    <button type="submit" class="btn btn-primary" id="saveApiKeyBtn">Save & Refresh</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>

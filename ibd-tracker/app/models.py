@@ -43,6 +43,7 @@ class BloodEventsSummary(BaseModel):
 class SummaryStats(BaseModel):
     total_logs: int
     days_window: int
+    active_days: int = 0
     avg_daily_count: float
     avg_bristol: Optional[float] = None
     avg_pain: Optional[float] = None

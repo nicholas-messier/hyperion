@@ -81,21 +81,35 @@ def add_logs_batch(entries: List[Dict[str, Any]]) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
         for item in entries:
-            blood = item.get("blood", "none")
-            bristol = int(item.get("bristol", 4))
-            pain = int(item.get("pain", 1))
-            notes = item.get("notes", "")
-            ts = item.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            if blood in ("none", "some", "alot") and (1 <= bristol <= 7) and (1 <= pain <= 10):
+            try:
+                blood = str(item.get("blood", "none")).lower().strip()
+                if blood not in ("none", "some", "alot"):
+                    if any(w in blood for w in ["alot", "a lot", "severe", "heavy"]):
+                        blood = "alot"
+                    elif any(w in blood for w in ["some", "trace", "mild", "yes", "true", "light"]):
+                        blood = "some"
+                    else:
+                        blood = "none"
+
+                bristol = int(item.get("bristol", 4))
+                bristol = max(1, min(7, bristol))
+                
+                pain = int(item.get("pain", 1))
+                pain = max(1, min(10, pain))
+                
+                notes = str(item.get("notes", "") or "")
+                ts = item.get("timestamp") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
                 cursor.execute(
                     """
                     INSERT INTO logs (timestamp, bristol, pain, blood, notes)
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                    (ts, bristol, pain, blood, notes or "")
+                    (ts, bristol, pain, blood, notes)
                 )
                 inserted += 1
+            except Exception:
+                continue
         conn.commit()
     return inserted
 
@@ -154,6 +168,7 @@ def get_stats(days: int = 30) -> Dict[str, Any]:
         )
         sum_row = cursor.fetchone()
         total_logs = sum_row["total_logs"] if sum_row and sum_row["total_logs"] else 0
+        active_days = sum_row["active_days"] if sum_row and sum_row["active_days"] else 0
         avg_bristol = round(sum_row["avg_bristol"], 2) if sum_row and sum_row["avg_bristol"] is not None else None
         avg_pain = round(sum_row["avg_pain"], 2) if sum_row and sum_row["avg_pain"] is not None else None
         blood_none = sum_row["blood_none"] if sum_row and sum_row["blood_none"] else 0
@@ -162,11 +177,12 @@ def get_stats(days: int = 30) -> Dict[str, Any]:
         
         blood_total_events = blood_some + blood_alot
         blood_pct = round((blood_total_events / total_logs * 100), 1) if total_logs > 0 else 0.0
-        avg_daily = round(total_logs / max(days, 1), 2)
+        avg_daily = round(total_logs / active_days, 2) if active_days > 0 else 0.0
 
         summary = {
             "total_logs": total_logs,
             "days_window": days,
+            "active_days": active_days,
             "avg_daily_count": avg_daily,
             "avg_bristol": avg_bristol,
             "avg_pain": avg_pain,

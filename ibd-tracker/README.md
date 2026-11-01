@@ -26,4 +26,5 @@ Access the dashboard at `http://<hyperion-ip>:8080/`.
 ## Documentation
 
 - [`PLAN.md`](PLAN.md) — Detailed technical specification and Devin CLI implementation blueprint.
-- [`IOS_SHORTCUT_GUIDE.md`](IOS_SHORTCUT_GUIDE.md) — Step-by-step setup guide for the iOS Shortcut on iPhone.
+- [`IOS_SHORTCUT_GUIDE.md`](IOS_SHORTCUT_GUIDE.md) — Step-by-step setup guide for the iOS Shortcut on iPhone (local queue & remote batch sync workflow).
+- [`CLOUDFLARE_SETUP.md`](CLOUDFLARE_SETUP.md) — Zero-cost Cloudflare Tunnel guide for seamless local/remote iPhone data submission without port forwarding.

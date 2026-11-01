@@ -462,7 +462,7 @@ body {
     color: var(--text-muted);
 }
 
-#logForm {
+#logForm, #apiKeyForm {
     padding: 1.5rem;
     display: flex;
     flex-direction: column;

@@ -1,8 +1,8 @@
-# iOS Shortcut Setup Guide: Local Queue & Batch Sync Workflow
+# iOS Shortcut Setup Guide: Local Queue & Remote Batch Sync Workflow
 
-This guide details the default offline-first symptom logging workflow for your iPhone:
+This guide details the offline-first symptom logging and remote batch sync workflow for your iPhone:
 - **Shortcut 1 ("Log Movement"):** 3-tap instant intake saving locally to your device with exact timestamps. Works 100% offline anywhere (airplane mode, travel, cell dead zones).
-- **Shortcut 2 ("Sync Logs"):** 1-tap sync to upload all accumulated logs to Hyperion in bulk whenever you are home on Wi-Fi or every few days.
+- **Shortcut 2 ("Sync Logs"):** 1-tap remote sync to upload all accumulated logs to Hyperion in bulk whenever you want, whether connected to home Wi-Fi or cellular data (via Cloudflare Tunnel).
 
 ---
 
@@ -64,7 +64,7 @@ Open the **Shortcuts** app on your iPhone and tap **`+`** (New Shortcut). Name i
 ### Step 5: Append to Local File Queue
 1. Add action: **`Append to File`**:
    - Append: `Dictionary`
-   - File Path: `Shortcuts/ibd_offline_logs.json`
+   - File Path: `ibd_offline_logs.json` (Note: Files actions default to the `Shortcuts` folder in iCloud Drive, so do not prefix with `Shortcuts/`)
    - Make New Line: **On**
 2. Add action: **`Show Notification`**:
    - Title: `IBD Tracker`
@@ -73,28 +73,30 @@ Open the **Shortcuts** app on your iPhone and tap **`+`** (New Shortcut). Name i
 
 ---
 
-## Shortcut 2: "Sync Logs" (Upload to Hyperion)
+## Shortcut 2: "Sync Logs" (Universal Local & Remote Upload)
 
-Create a second shortcut in the Shortcuts app and name it **"Sync Logs"**.
+Create a companion shortcut to upload accumulated offline logs from anywhere:
 
 1. Add action: **`Get File`**:
-   - Document Path: `Shortcuts/ibd_offline_logs.json`
+   - Document Path: `ibd_offline_logs.json`
    - Error If Not Found: **Off**
 2. Add action: **`If`**:
    - Condition: `File` *has any value*
 3. Inside the `If` block:
    - Add action: **`Get Contents of URL`**:
-     - URL: `http://192.168.0.16:8080/api/logs/batch`
+     - URL: `https://ibd.hyperionsrv.download/api/logs/batch`
      - Method: `POST`
      - Headers:
        - `Content-Type`: `text/plain`
-     - Request Body: `File` (Select the `File` variable from Step 1)
+       - `X-API-Key`: `ibd_tracker_hyperion_key_2026`
+     - Request Body: Tap `JSON` and change it to **`File`**
+     - File: Tap the field and select the **`File`** variable (from Step 1)
    - Add action: **`Delete Files`**:
-     - Input: `File` (Select the file from Step 1)
+     - Input: `File`
      - Confirm Before Deleting: **Off**
    - Add action: **`Show Notification`**:
      - Title: `IBD Tracker`
-     - Message: `Synced all offline logs to Hyperion!`
+     - Message: `Synced all offline logs to server!`
 4. In the `Otherwise` block:
    - Add action: **`Show Notification`**:
      - Title: `IBD Tracker`

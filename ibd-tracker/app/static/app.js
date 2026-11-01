@@ -19,6 +19,7 @@ const todayCountBadge = document.getElementById("todayCountBadge");
 const metricTodayCount = document.getElementById("metricTodayCount");
 const metricTodayStatus = document.getElementById("metricTodayStatus");
 const metricAvgDaily = document.getElementById("metricAvgDaily");
+const metricAvgDailySub = document.getElementById("metricAvgDailySub");
 const metricAvgBristol = document.getElementById("metricAvgBristol");
 const metricBristolLabel = document.getElementById("metricBristolLabel");
 const metricAvgPain = document.getElementById("metricAvgPain");
@@ -28,7 +29,7 @@ const tableWindowLabel = document.getElementById("tableWindowLabel");
 const dailyTableBody = document.getElementById("dailyTableBody");
 const recentTableBody = document.getElementById("recentTableBody");
 
-// Modal Elements
+// Log Modal Elements
 const openLogModalBtn = document.getElementById("openLogModalBtn");
 const closeLogModalBtn = document.getElementById("closeLogModalBtn");
 const cancelModalBtn = document.getElementById("cancelModalBtn");
@@ -43,7 +44,60 @@ const bloodSelector = document.getElementById("bloodSelector");
 const toast = document.getElementById("toast");
 const printReportBtn = document.getElementById("printReportBtn");
 const printDateRange = document.getElementById("printDateRange");
+const printActiveDays = document.getElementById("printActiveDays");
 const printGenDate = document.getElementById("printGenDate");
+
+// API Key Modal Elements
+const apiKeyBtn = document.getElementById("apiKeyBtn");
+const apiKeyModal = document.getElementById("apiKeyModal");
+const closeApiKeyModalBtn = document.getElementById("closeApiKeyModalBtn");
+const apiKeyForm = document.getElementById("apiKeyForm");
+const apiKeyInput = document.getElementById("apiKeyInput");
+const clearApiKeyBtn = document.getElementById("clearApiKeyBtn");
+
+// API Key Storage & Header Helpers
+function getStoredApiKey() {
+    return localStorage.getItem("ibd_api_key") || "";
+}
+
+function setStoredApiKey(key) {
+    if (key && key.trim()) {
+        localStorage.setItem("ibd_api_key", key.trim());
+    } else {
+        localStorage.removeItem("ibd_api_key");
+    }
+    updateExportLink();
+}
+
+function getAuthHeaders(customHeaders = {}) {
+    const key = getStoredApiKey();
+    const headers = { ...customHeaders };
+    if (key) {
+        headers["X-API-Key"] = key;
+    }
+    return headers;
+}
+
+function updateExportLink() {
+    const exportCsvBtn = document.getElementById("exportCsvBtn");
+    if (exportCsvBtn) {
+        const key = getStoredApiKey();
+        exportCsvBtn.href = key ? `/api/export?format=csv&api_key=${encodeURIComponent(key)}` : `/api/export?format=csv`;
+    }
+}
+
+function checkUrlApiKey() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const keyParam = urlParams.get("api_key") || urlParams.get("key");
+    if (keyParam) {
+        setStoredApiKey(keyParam);
+        urlParams.delete("api_key");
+        urlParams.delete("key");
+        const newSearch = urlParams.toString() ? `?${urlParams.toString()}` : "";
+        window.history.replaceState({}, "", window.location.pathname + newSearch);
+        showToast("API Key saved to browser");
+    }
+}
 
 // Toast Notification
 function showToast(message, duration = 3000) {
@@ -96,19 +150,34 @@ async function loadDashboard() {
 
     try {
         const [statsRes, todayRes] = await Promise.all([
-            fetch(`/api/stats?days=${days}`).then(r => r.json()),
-            fetch(`/api/today`).then(r => r.json())
+            fetch(`/api/stats?days=${days}`, { headers: getAuthHeaders() }),
+            fetch(`/api/today`, { headers: getAuthHeaders() })
         ]);
 
+        if (statsRes.status === 401 || todayRes.status === 401) {
+            showToast("API Key Required to view data");
+            openApiKeyModal();
+            return;
+        }
+
+        const statsResData = await statsRes.json();
+        const todayResData = await todayRes.json();
+
         // Update Today Badges
-        const todayCount = todayRes.today_count;
+        const todayCount = todayResData.today_count;
         todayCountBadge.textContent = todayCount;
         metricTodayCount.textContent = todayCount;
         metricTodayStatus.textContent = todayCount === 1 ? "1 movement today" : `${todayCount} movements today`;
 
         // Update Summary Metrics
-        const sum = statsRes.summary;
+        const sum = statsResData.summary;
         metricAvgDaily.textContent = sum.avg_daily_count.toFixed(1);
+        if (metricAvgDailySub) {
+            metricAvgDailySub.textContent = `movements / active day (${sum.active_days} of ${sum.days_window}d with logs)`;
+        }
+        if (printActiveDays) {
+            printActiveDays.textContent = `${sum.active_days} active logging days`;
+        }
         
         if (sum.avg_bristol !== null) {
             metricAvgBristol.textContent = sum.avg_bristol.toFixed(1);
@@ -131,13 +200,13 @@ async function loadDashboard() {
         metricBloodEvents.textContent = `${totalBloodEvents} blood events (${sum.blood_events.some} some, ${sum.blood_events.alot} a lot)`;
 
         // Render Charts
-        renderCharts(statsRes.daily_breakdown);
+        renderCharts(statsResData.daily_breakdown);
 
         // Render Daily Breakdown Table
-        renderDailyTable(statsRes.daily_breakdown);
+        renderDailyTable(statsResData.daily_breakdown);
 
         // Render Recent Logs Table
-        renderRecentTable(statsRes.recent_logs);
+        renderRecentTable(statsResData.recent_logs);
 
     } catch (err) {
         console.error("Failed to load dashboard data:", err);
@@ -259,7 +328,6 @@ function renderDailyTable(dailyData) {
         return;
     }
 
-    // Sort descending by date for the table
     const sorted = [...dailyData].reverse();
     dailyTableBody.innerHTML = sorted.map(row => {
         let bloodText = '<span class="text-muted">None</span>';
@@ -319,7 +387,10 @@ function escapeHtml(str) {
 window.deleteLogEntry = async function(id) {
     if (!confirm("Are you sure you want to delete this log entry?")) return;
     try {
-        const res = await fetch(`/api/logs/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/logs/${id}`, {
+            method: "DELETE",
+            headers: getAuthHeaders()
+        });
         if (res.ok) {
             showToast("Log entry deleted");
             loadDashboard();
@@ -332,13 +403,23 @@ window.deleteLogEntry = async function(id) {
     }
 };
 
-// Modal Interaction
+// Log Modal Interaction
 function openModal() {
     logModal.classList.add("active");
 }
 
 function closeModal() {
     logModal.classList.remove("active");
+}
+
+// API Key Modal Interaction
+function openApiKeyModal() {
+    apiKeyInput.value = getStoredApiKey();
+    apiKeyModal.classList.add("active");
+}
+
+function closeApiKeyModal() {
+    apiKeyModal.classList.remove("active");
 }
 
 // Bristol Selector Buttons
@@ -372,7 +453,7 @@ bloodSelector.querySelectorAll(".radio-pill").forEach(pill => {
     });
 });
 
-// Form Submission
+// Log Form Submission
 logForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const bristol = parseInt(bristolInput.value, 10);
@@ -383,7 +464,7 @@ logForm.addEventListener("submit", async (e) => {
     try {
         const res = await fetch("/api/log", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ bristol, pain, blood, notes })
         });
 
@@ -392,7 +473,6 @@ logForm.addEventListener("submit", async (e) => {
             showToast(data.message || "Movement logged successfully!");
             closeModal();
             logForm.reset();
-            // Reset to defaults
             bristolSelector.querySelector('[data-val="4"]').click();
             painRange.value = 1;
             painValueDisplay.textContent = "1";
@@ -407,6 +487,36 @@ logForm.addEventListener("submit", async (e) => {
         showToast("Error communicating with server");
     }
 });
+
+// API Key Form Submission
+if (apiKeyForm) {
+    apiKeyForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const key = apiKeyInput.value.trim();
+        setStoredApiKey(key);
+        closeApiKeyModal();
+        showToast("API Key updated. Refreshing...");
+        loadDashboard();
+    });
+}
+
+if (clearApiKeyBtn) {
+    clearApiKeyBtn.addEventListener("click", () => {
+        setStoredApiKey("");
+        apiKeyInput.value = "";
+        closeApiKeyModal();
+        showToast("API Key cleared.");
+        loadDashboard();
+    });
+}
+
+if (apiKeyBtn) apiKeyBtn.addEventListener("click", openApiKeyModal);
+if (closeApiKeyModalBtn) closeApiKeyModalBtn.addEventListener("click", closeApiKeyModal);
+if (apiKeyModal) {
+    apiKeyModal.addEventListener("click", (e) => {
+        if (e.target === apiKeyModal) closeApiKeyModal();
+    });
+}
 
 // Event Listeners
 openLogModalBtn.addEventListener("click", openModal);
@@ -423,5 +533,7 @@ printReportBtn.addEventListener("click", () => {
 
 // Initial Load
 document.addEventListener("DOMContentLoaded", () => {
+    checkUrlApiKey();
+    updateExportLink();
     loadDashboard();
 });
